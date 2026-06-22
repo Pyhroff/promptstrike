@@ -1,11 +1,45 @@
+# Secrets
 .env
+*.key
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-.pytest_cache/
+*.pyd
+.Python
+*.egg-info/
 dist/
 build/
-*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Linting
+.ruff_cache/
+.mypy_cache/
+
+# PromptStrike runtime files
 promptstrike.db
 reports/
-.ruff_cache/
+*.html
+!promptstrike/report/templates/*.html
+!promptstrike/api/static/*.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
