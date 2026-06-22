@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PromptStrike Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050714;--bg2:#0b0f22;--panel:rgba(255,255,255,0.03);
+  --glass:rgba(255,255,255,0.05);--glass-b:rgba(255,255,255,0.09);
+  --glass-h:rgba(255,255,255,0.08);--faint:rgba(255,255,255,0.07);
+  --purple:#8b5cf6;--blue:#3b82f6;--teal:#06b6d4;
+  --green:#10b981;--red:#ef4444;--amber:#f59e0b;
+  --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.45);--dim:rgba(255,255,255,0.22);
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* ── global glow ── */
+body::before{content:'';position:fixed;width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,0.10),transparent 70%);top:-150px;left:-150px;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,0.08),transparent 70%);bottom:-100px;right:-100px;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
+
+/* ── top bar ── */
+.topbar{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:54px;background:rgba(5,7,20,0.9);border-bottom:1px solid var(--faint);backdrop-filter:blur(20px);flex-shrink:0}
+.logo{font-size:17px;font-weight:700;background:linear-gradient(135deg,var(--purple),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-0.3px}
+.logo span{font-weight:300}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.status-dot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+.status-label{font-size:11px;color:var(--muted)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* ── layout ── */
+.layout{position:relative;z-index:1;display:flex;flex:1;overflow:hidden}
+
+/* ── sidebar ── */
+.sidebar{width:280px;flex-shrink:0;border-right:1px solid var(--faint);display:flex;flex-direction:column;overflow:hidden;background:rgba(5,7,20,0.6)}
+.sidebar-header{padding:16px 18px;border-bottom:1px solid var(--faint);display:flex;align-items:center;justify-content:space-between}
+.sidebar-title{font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+.btn{font-family:inherit;font-size:11px;font-weight:600;padding:6px 14px;border-radius:8px;border:none;cursor:pointer;letter-spacing:0.3px;transition:opacity .15s}
+.btn-primary{background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff}
+.btn-primary:hover{opacity:0.85}
+.btn-sm{font-size:10px;padding:4px 10px}
+.sidebar-list{flex:1;overflow-y:auto;padding:8px}
+.sidebar-list::-webkit-scrollbar{width:3px}
+.sidebar-list::-webkit-scrollbar-thumb{background:var(--faint);border-radius:2px}
+
+.camp-item{padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .15s;margin-bottom:4px;border:1px solid transparent}
+.camp-item:hover{background:var(--glass-h)}
+.camp-item.active{background:var(--glass);border-color:var(--glass-b)}
+.camp-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.camp-meta{font-size:10px;color:var(--muted);margin-top:3px;display:flex;gap:8px}
+.camp-asr{font-weight:600}
+.camp-asr.hot{color:var(--red)}
+.camp-asr.warn{color:var(--amber)}
+.camp-asr.safe{color:var(--green)}
+
+/* ── main area ── */
+.main{flex:1;overflow-y:auto;padding:28px 32px}
+.main::-webkit-scrollbar{width:4px}
+.main::-webkit-scrollbar-thumb{background:var(--faint);border-radius:2px}
+
+/* ── scan config form ── */
+.form-card{background:var(--glass);border:1px solid var(--glass-b);border-radius:16px;padding:24px;margin-bottom:28px}
+.form-title{font-size:13px;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.form-title span{font-size:10px;color:var(--muted);font-weight:400}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.wide{grid-column:span 3}
+.form-group.two{grid-column:span 2}
+label{font-size:10px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted)}
+input,select{font-family:inherit;font-size:12px;background:rgba(0,0,0,0.3);border:1px solid var(--faint);border-radius:8px;padding:8px 12px;color:var(--text);outline:none;width:100%;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--purple)}
+select option{background:#0b0f22}
+.form-actions{margin-top:18px;display:flex;gap:10px;align-items:center}
+.scan-hint{font-size:10px;color:var(--dim)}
+
+/* ── section title ── */
+.stitle{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;margin-top:32px;display:flex;align-items:center;gap:10px}
+.stitle::after{content:'';flex:1;height:1px;background:var(--faint)}
+.stitle:first-child{margin-top:0}
+
+/* ── live scan view ── */
+.live-banner{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:14px;padding:18px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between}
+.live-left{display:flex;align-items:center;gap:12px}
+.live-spinner{width:16px;height:16px;border:2px solid rgba(139,92,246,0.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.live-title{font-size:13px;font-weight:600}
+.live-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.live-stat{text-align:right}
+.live-stat-val{font-size:20px;font-weight:700;color:var(--purple)}
+.live-stat-label{font-size:10px;color:var(--muted)}
+
+.goal-card{background:var(--glass);border:1px solid var(--glass-b);border-radius:14px;padding:18px;margin-bottom:12px}
+.goal-card.success{border-color:rgba(16,185,129,0.35);background:rgba(16,185,129,0.06)}
+.goal-card.failed{border-color:rgba(239,68,68,0.25);background:rgba(239,68,68,0.04)}
+.goal-card.active{border-color:rgba(139,92,246,0.35);background:rgba(139,92,246,0.06)}
+.goal-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.goal-text{font-size:12px;font-weight:500;line-height:1.5;flex:1}
+.goal-badges{display:flex;gap:6px;flex-shrink:0;align-items:center}
+.badge{display:inline-flex;align-items:center;font-size:9px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;padding:2px 8px;border-radius:20px}
+.bs{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3)}
+.bf{background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.25)}
+.ba{background:rgba(139,92,246,0.12);color:#a78bfa;border:1px solid rgba(139,92,246,0.25)}
+.bw{background:rgba(245,158,11,0.12);color:#fbbf24;border:1px solid rgba(245,158,11,0.25)}
+.sp{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;min-width:28px;text-align:center}
+.sh{background:rgba(239,68,68,0.18);color:#f87171}
+.sm{background:rgba(245,158,11,0.15);color:#fbbf24}
+.sl{background:rgba(255,255,255,0.06);color:var(--muted)}
+.ot{font-size:9px;font-weight:600;color:var(--purple);background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);padding:2px 6px;border-radius:4px}
+
+/* iteration log */
+.iter-log{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.iter-row{display:flex;align-items:center;gap:8px;font-size:10px;padding:5px 8px;border-radius:6px;background:rgba(0,0,0,0.2)}
+.iter-num{color:var(--dim);width:20px;flex-shrink:0}
+.iter-score{width:36px;text-align:center;flex-shrink:0}
+.iter-bar{flex:1;height:4px;background:var(--faint);border-radius:2px;overflow:hidden}
+.iter-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--purple),var(--blue))}
+.iter-fill.good{background:linear-gradient(90deg,var(--green),var(--teal))}
+.iter-fill.danger{background:linear-gradient(90deg,var(--red),#f97316)}
+.iter-prompt{color:var(--dim);font-family:'JetBrains Mono',monospace;font-size:9px;flex:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* campaign detail table */
+.tw{overflow-x:auto;border-radius:12px;border:1px solid var(--glass-b)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:10px 14px;text-align:left;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,0.02);border-bottom:1px solid var(--faint);white-space:nowrap}
+tbody td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.03);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--glass-h)}
+
+/* summary cards */
+.kpi-row{display:flex;gap:12px;margin-bottom:20px}
+.kpi{flex:1;background:var(--glass);border:1px solid var(--glass-b);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kpi.p::before{background:linear-gradient(90deg,var(--purple),var(--blue))}
+.kpi.r::before{background:linear-gradient(90deg,var(--red),#f97316)}
+.kpi.a::before{background:linear-gradient(90deg,var(--amber),#fbbf24)}
+.kpi.g::before{background:linear-gradient(90deg,var(--green),var(--teal))}
+.kl{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.kv{font-size:28px;font-weight:700;line-height:1;letter-spacing:-0.5px}
+.kpi.p .kv{background:linear-gradient(135deg,var(--purple),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.kpi.r .kv{color:var(--red)}
+.kpi.a .kv{color:var(--amber)}
+.kpi.g .kv{color:var(--green)}
+
+/* empty / placeholder */
+.empty{text-align:center;padding:60px 20px;color:var(--dim);font-size:13px}
+.empty-icon{font-size:32px;margin-bottom:12px;opacity:0.3}
+
+/* toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--glass);border:1px solid var(--glass-b);border-radius:12px;padding:12px 18px;font-size:12px;z-index:100;backdrop-filter:blur(20px);transform:translateY(100px);transition:transform .3s;max-width:320px}
+.toast.show{transform:translateY(0)}
+.toast.error{border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.1)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Prompt<span>Strike</span> <span style="font-size:11px;color:var(--muted);margin-left:4px;font-weight:400">Dashboard</span></div>
+  <div class="topbar-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-label" id="statusLabel">idle</span>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- sidebar: campaign history -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Campaigns</span>
+      <button class="btn btn-primary btn-sm" onclick="showNewScan()">+ New Scan</button>
+    </div>
+    <div class="sidebar-list" id="campaignList">
+      <div class="empty" style="padding:30px 12px">
+        <div>No campaigns yet</div>
+        <div style="font-size:10px;margin-top:4px">Run a scan to get started</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- main content -->
+  <main class="main" id="mainContent">
+    <!-- New scan form (default view) -->
+    <div id="viewNewScan">
+      <div class="stitle" style="margin-top:0">New Scan</div>
+      <div class="form-card">
+        <div class="form-title">Configure Attack Campaign <span>— fields marked * are required</span></div>
+        <div class="form-grid">
+          <div class="form-group two">
+            <label>Target Model *</label>
+            <input id="fTarget" type="text" value="groq/llama-3.3-70b-versatile" placeholder="groq/llama-3.3-70b-versatile"/>
+          </div>
+          <div class="form-group">
+            <label>Algorithm</label>
+            <select id="fAlgo">
+              <option value="pair">PAIR — Chao et al. 2023</option>
+              <option value="tap">TAP — Mehrotra et al. 2023</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Goals (blank = all 50)</label>
+            <input id="fGoals" type="number" placeholder="e.g. 10" min="1" max="50"/>
+          </div>
+          <div class="form-group">
+            <label>Category filter</label>
+            <select id="fCategory">
+              <option value="">All categories</option>
+              <option value="cybercrime">Cybercrime</option>
+              <option value="malware">Malware</option>
+              <option value="fraud">Fraud</option>
+              <option value="privacy">Privacy</option>
+              <option value="disinformation">Disinformation</option>
+              <option value="weapons">Weapons</option>
+              <option value="violence">Violence</option>
+              <option value="hate_speech">Hate Speech</option>
+              <option value="financial_crime">Financial Crime</option>
+              <option value="ai_attacks">AI Attacks</option>
+              <option value="infrastructure">Infrastructure</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Max Iterations (PAIR)</label>
+            <input id="fMaxIter" type="number" value="20" min="1" max="50"/>
+          </div>
+          <div class="form-group">
+            <label>Call Budget</label>
+            <input id="fBudget" type="number" value="200" min="10"/>
+          </div>
+          <div class="form-group wide">
+            <label>Campaign Name (optional)</label>
+            <input id="fName" type="text" placeholder="auto-generated if blank"/>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="startScan()">Launch Scan</button>
+          <span class="scan-hint">Requires GROQ_API_KEY in .env — uses ~3 API calls per iteration</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live scan view -->
+    <div id="viewLive" style="display:none">
+      <div class="live-banner" id="liveBanner">
+        <div class="live-left">
+          <div class="live-spinner"></div>
+          <div>
+            <div class="live-title" id="liveCampaignName">Scan running…</div>
+            <div class="live-sub" id="liveTarget"></div>
+          </div>
+        </div>
+        <div class="live-stat">
+          <div class="live-stat-val" id="liveProgress">0 / 0</div>
+          <div class="live-stat-label">goals complete</div>
+        </div>
+      </div>
+      <div id="liveGoals"></div>
+    </div>
+
+    <!-- Campaign detail view -->
+    <div id="viewDetail" style="display:none">
+      <div id="detailContent"></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── state ──────────────────────────────────────────────────────────────────────
+let ws = null;
+let activeScanId = null;
+let activeCampaignId = null;
+let goalResults = [];
+let totalGoals = 0;
+
+// ── init ───────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadCampaigns();
+});
+
+// ── campaign list ──────────────────────────────────────────────────────────────
+async function loadCampaigns() {
+  try {
+    const res = await fetch('/api/campaigns');
+    const campaigns = await res.json();
+    renderCampaignList(campaigns);
+  } catch(e) { /* server might not be ready */ }
+}
+
+function renderCampaignList(campaigns) {
+  const el = document.getElementById('campaignList');
+  if (!campaigns.length) {
+    el.innerHTML = `<div class="empty" style="padding:30px 12px"><div>No campaigns yet</div><div style="font-size:10px;margin-top:4px">Run a scan to get started</div></div>`;
+    return;
+  }
+  el.innerHTML = campaigns.map(c => {
+    const asr = (c.asr * 100).toFixed(0);
+    const cls = asr >= 50 ? 'hot' : asr >= 20 ? 'warn' : 'safe';
+    return `<div class="camp-item" onclick="loadCampaign(${c.id})">
+      <div class="camp-name">${esc(c.name)}</div>
+      <div class="camp-meta">
+        <span>${c.total_goals} goals</span>
+        <span class="camp-asr ${cls}">${asr}% ASR</span>
+        <span>${c.created_at.slice(0,10)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── campaign detail ────────────────────────────────────────────────────────────
+async function loadCampaign(id) {
+  try {
+    const res = await fetch(`/api/campaigns/${id}`);
+    const data = await res.json();
+    showView('viewDetail');
+    renderDetail(data.campaign, data.runs);
+    // highlight sidebar
+    document.querySelectorAll('.camp-item').forEach(el => el.classList.remove('active'));
+  } catch(e) { toast('Failed to load campaign', true); }
+}
+
+function renderDetail(c, runs) {
+  const asr = (c.asr * 100).toFixed(1);
+  const succeeded = runs.filter(r => r.status === 'success').length;
+
+  document.getElementById('detailContent').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-size:18px;font-weight:600">${esc(c.name)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${esc(c.target)} · ${esc(c.algorithm.toUpperCase())} · ${c.created_at.slice(0,19)}</div>
+      </div>
+      <a href="/api/campaigns/${c.id}/report" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none">Export Report</a>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi p"><div class="kl">Goals</div><div class="kv">${c.total_goals}</div></div>
+      <div class="kpi r"><div class="kl">Jailbroken</div><div class="kv">${succeeded}</div></div>
+      <div class="kpi a"><div class="kl">ASR</div><div class="kv">${asr}%</div></div>
+      <div class="kpi g"><div class="kl">Defended</div><div class="kv">${c.total_goals - succeeded}</div></div>
+    </div>
+    <div class="stitle">Run Log</div>
+    <div class="tw"><table>
+      <thead><tr><th>#</th><th>Category</th><th>OWASP</th><th>Goal</th><th>Calls</th><th>Score</th><th>Status</th></tr></thead>
+      <tbody>${runs.map(r => `
+        <tr>
+          <td style="color:var(--dim);font-size:10px">${r.behavior_id}</td>
+          <td style="font-size:10px;color:var(--muted)">${r.category}</td>
+          <td><span class="ot">${r.owasp}</span></td>
+          <td>${esc(r.goal.slice(0,80))}${r.goal.length>80?'…':''}</td>
+          <td style="text-align:center;color:var(--muted);font-size:10px">${r.calls_used}</td>
+          <td style="text-align:center">${scorePill(r.final_score)}</td>
+          <td>${statusBadge(r.status)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+// ── scan launch ────────────────────────────────────────────────────────────────
+async function startScan() {
+  const body = {
+    target:       document.getElementById('fTarget').value.trim(),
+    algorithm:    document.getElementById('fAlgo').value,
+    goals:        parseInt(document.getElementById('fGoals').value) || null,
+    category:     document.getElementById('fCategory').value || null,
+    max_iter:     parseInt(document.getElementById('fMaxIter').value) || 20,
+    budget:       parseInt(document.getElementById('fBudget').value) || 200,
+    campaign_name:document.getElementById('fName').value.trim(),
+  };
+
+  if (!body.target) { toast('Target model is required', true); return; }
+
+  try {
+    const res = await fetch('/api/scan', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (!res.ok) { const e = await res.json(); toast(e.detail || 'Scan failed', true); return; }
+    const { scan_id } = await res.json();
+    activeScanId = scan_id;
+    goalResults = [];
+    totalGoals = 0;
+    connectWS(scan_id);
+  } catch(e) { toast('Could not reach server', true); }
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────────
+function connectWS(scanId) {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws/${scanId}`);
+
+  ws.onopen = () => {
+    setStatus(true);
+    showView('viewLive');
+  };
+
+  ws.onmessage = (e) => {
+    const ev = JSON.parse(e.data);
+    handleEvent(ev);
+  };
+
+  ws.onclose = () => {
+    setStatus(false);
+    activeScanId = null;
+    loadCampaigns();
+  };
+
+  ws.onerror = () => toast('WebSocket error', true);
+}
+
+function handleEvent(ev) {
+  switch(ev.type) {
+    case 'scan_start':
+      totalGoals = ev.total_goals;
+      document.getElementById('liveCampaignName').textContent = ev.campaign_name;
+      document.getElementById('liveTarget').textContent = `${ev.target} · ${ev.algorithm.toUpperCase()}`;
+      document.getElementById('liveProgress').textContent = `0 / ${totalGoals}`;
+      activeCampaignId = ev.campaign_id;
+      break;
+
+    case 'goal_start':
+      goalResults[ev.goal_idx - 1] = {
+        idx: ev.goal_idx,
+        goal: ev.goal,
+        category: ev.category,
+        owasp: ev.owasp,
+        status: 'active',
+        score: 0,
+        iterations: [],
+      };
+      renderLiveGoals();
+      break;
+
+    case 'iteration':
+      if (goalResults[ev.goal_idx - 1]) {
+        const g = goalResults[ev.goal_idx - 1];
+        g.iterations.push({ num: ev.iteration, score: ev.score, prompt: ev.prompt_snippet });
+        g.score = ev.score;
+        renderLiveGoals();
+      }
+      break;
+
+    case 'tap_node':
+      if (goalResults[ev.goal_idx - 1]) {
+        const g = goalResults[ev.goal_idx - 1];
+        g.iterations.push({ num: `d${ev.depth}n${ev.node}`, score: ev.score, prompt: ev.prompt_snippet });
+        g.score = ev.score;
+        renderLiveGoals();
+      }
+      break;
+
+    case 'goal_end': {
+      const g = goalResults[ev.goal_idx - 1];
+      if (g) {
+        g.status = ev.status;
+        g.score = ev.final_score;
+      }
+      const done = goalResults.filter(g => g && g.status !== 'active').length;
+      document.getElementById('liveProgress').textContent = `${done} / ${totalGoals}`;
+      renderLiveGoals();
+      break;
+    }
+
+    case 'scan_complete':
+      document.getElementById('liveBanner').innerHTML = `
+        <div class="live-left">
+          <div style="font-size:16px">✓</div>
+          <div>
+            <div class="live-title">Scan complete — ${ev.succeeded}/${ev.total} jailbroken · ${ev.asr}% ASR</div>
+            <div class="live-sub">${ev.total_calls} API calls used</div>
+          </div>
+        </div>
+        <a href="/api/campaigns/${ev.campaign_id}/report" target="_blank" class="btn btn-primary btn-sm" style="text-decoration:none">Export Report</a>`;
+      document.getElementById('liveBanner').style.borderColor = 'rgba(16,185,129,0.3)';
+      document.getElementById('liveBanner').style.background = 'rgba(16,185,129,0.06)';
+      setStatus(false);
+      loadCampaigns();
+      break;
+
+    case 'error':
+      toast(ev.message, true);
+      setStatus(false);
+      break;
+  }
+}
+
+function renderLiveGoals() {
+  const el = document.getElementById('liveGoals');
+  el.innerHTML = goalResults.filter(Boolean).reverse().slice(0, 12).map(g => {
+    const cls = g.status === 'success' ? 'success' : g.status === 'active' ? 'active' : g.status === 'failed' ? 'failed' : '';
+    const badge = g.status === 'success' ? `<span class="badge bs">✓ jailbroken</span>`
+                : g.status === 'active'  ? `<span class="badge ba">running…</span>`
+                : g.status === 'failed'  ? `<span class="badge bf">✗ defended</span>`
+                : `<span class="badge bw">${g.status}</span>`;
+
+    const lastIters = g.iterations.slice(-4);
+    const iterLog = lastIters.length ? `<div class="iter-log">${lastIters.map(it =>
+      `<div class="iter-row">
+        <span class="iter-num">${it.num}</span>
+        <span class="iter-score">${scorePill(it.score)}</span>
+        <div class="iter-bar"><div class="iter-fill ${it.score>=9?'danger':it.score>=5?'good':''}" style="width:${it.score*10}%"></div></div>
+        <span class="iter-prompt">${esc(it.prompt)}</span>
+      </div>`).join('')}</div>` : '';
+
+    return `<div class="goal-card ${cls}">
+      <div class="goal-header">
+        <div class="goal-text">${esc(g.goal)}</div>
+        <div class="goal-badges">
+          ${badge}
+          <span class="ot">${g.owasp}</span>
+          ${g.score ? scorePill(g.score) : ''}
+        </div>
+      </div>
+      ${iterLog}
+    </div>`;
+  }).join('');
+}
+
+// ── helpers ────────────────────────────────────────────────────────────────────
+function showView(id) {
+  ['viewNewScan','viewLive','viewDetail'].forEach(v => {
+    document.getElementById(v).style.display = v === id ? 'block' : 'none';
+  });
+}
+
+function showNewScan() { showView('viewNewScan'); }
+
+function setStatus(live) {
+  const dot = document.getElementById('statusDot');
+  const lbl = document.getElementById('statusLabel');
+  dot.className = 'status-dot' + (live ? ' live' : '');
+  lbl.textContent = live ? 'live' : 'idle';
+}
+
+function scorePill(s) {
+  const cls = s >= 9 ? 'sh' : s >= 5 ? 'sm' : 'sl';
+  return `<span class="sp ${cls}">${s}</span>`;
+}
+
+function statusBadge(s) {
+  return s === 'success' ? `<span class="badge bs">✓ success</span>`
+       : s === 'failed'  ? `<span class="badge bf">✗ failed</span>`
+       : s === 'budget_exceeded' ? `<span class="badge bw">⚡ budget</span>`
+       : `<span class="badge" style="color:var(--muted)">${s}</span>`;
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, isErr) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isErr ? ' error' : '');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>

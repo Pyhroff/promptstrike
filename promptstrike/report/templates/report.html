@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PromptStrike — {{ campaign.name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #050714;
+    --bg2:       #0b0f22;
+    --glass:     rgba(255,255,255,0.04);
+    --glass-b:   rgba(255,255,255,0.08);
+    --glass-h:   rgba(255,255,255,0.07);
+    --purple:    #8b5cf6;
+    --blue:      #3b82f6;
+    --teal:      #06b6d4;
+    --green:     #10b981;
+    --red:       #ef4444;
+    --amber:     #f59e0b;
+    --text:      rgba(255,255,255,0.88);
+    --muted:     rgba(255,255,255,0.45);
+    --faint:     rgba(255,255,255,0.12);
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+    overflow-x: hidden;
+  }
+
+  /* ── background glow orbs ── */
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::before {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(139,92,246,0.12), transparent 70%);
+    top: -100px; left: -100px;
+  }
+  body::after {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(59,130,246,0.10), transparent 70%);
+    bottom: -80px; right: -80px;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 48px 32px 80px; }
+
+  /* ── header ── */
+  .header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 48px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--faint);
+  }
+  .logo-area {}
+  .logo {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--purple), var(--blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .logo span { font-weight: 300; opacity: 0.7; }
+  .tagline { font-size: 12px; color: var(--muted); margin-top: 5px; letter-spacing: 0.3px; }
+  .meta-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .meta-pill {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    background: var(--glass); border: 1px solid var(--glass-b);
+    color: var(--muted);
+  }
+  .meta-pill b { color: var(--text); }
+  .header-right { text-align: right; }
+  .campaign-name { font-size: 20px; font-weight: 600; color: var(--text); }
+  .campaign-sub  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── section title ── */
+  .section-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 16px; margin-top: 40px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--faint);
+  }
+
+  /* ── glass card ── */
+  .card {
+    background: var(--glass);
+    border: 1px solid var(--glass-b);
+    border-radius: 16px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 24px;
+  }
+
+  /* ── KPI grid ── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-b);
+    border-radius: 16px;
+    padding: 24px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .kpi-card.purple::before { background: linear-gradient(90deg, var(--purple), var(--blue)); }
+  .kpi-card.red::before    { background: linear-gradient(90deg, var(--red), #f97316); }
+  .kpi-card.amber::before  { background: linear-gradient(90deg, var(--amber), #f59e0b); }
+  .kpi-card.green::before  { background: linear-gradient(90deg, var(--green), var(--teal)); }
+
+  .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .kpi-value { font-size: 38px; font-weight: 700; line-height: 1; letter-spacing: -1px; }
+  .kpi-card.purple .kpi-value { background: linear-gradient(135deg, var(--purple), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .kpi-card.red    .kpi-value { color: var(--red); }
+  .kpi-card.amber  .kpi-value { color: var(--amber); }
+  .kpi-card.green  .kpi-value { color: var(--green); }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  /* ── OWASP bars ── */
+  .owasp-list { display: flex; flex-direction: column; gap: 14px; }
+  .owasp-row  { display: flex; align-items: center; gap: 14px; }
+  .owasp-code {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+    color: var(--purple); width: 46px; flex-shrink: 0;
+  }
+  .owasp-name { font-size: 12px; color: var(--muted); width: 200px; flex-shrink: 0; }
+  .owasp-bar-wrap {
+    flex: 1; height: 6px; background: var(--faint); border-radius: 10px; overflow: hidden;
+  }
+  .owasp-bar-fill {
+    height: 100%; border-radius: 10px;
+    background: linear-gradient(90deg, var(--purple), var(--blue));
+    transition: width 0.8s ease;
+  }
+  .owasp-bar-fill.danger { background: linear-gradient(90deg, var(--red), #f97316); }
+  .owasp-stat { font-size: 11px; color: var(--text); font-weight: 500; width: 50px; text-align: right; flex-shrink: 0; }
+  .owasp-count { font-size: 10px; color: var(--muted); width: 40px; text-align: right; flex-shrink: 0; }
+
+  /* ── category chips ── */
+  .cat-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .cat-chip {
+    padding: 8px 14px; border-radius: 10px;
+    background: var(--glass); border: 1px solid var(--glass-b);
+    font-size: 12px;
+  }
+  .cat-chip .cat-name { color: var(--text); font-weight: 500; }
+  .cat-chip .cat-asr  { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .cat-chip.hot  { border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.08); }
+  .cat-chip.warn { border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.06); }
+  .cat-chip.safe { border-color: rgba(16,185,129,0.35); background: rgba(16,185,129,0.06); }
+
+  /* ── table ── */
+  .table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--glass-b); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    padding: 12px 16px; text-align: left;
+    font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted);
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--faint);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+    color: var(--text);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--glass-h); }
+
+  /* ── badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 20px;
+  }
+  .badge-success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .badge-failed  { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+  .badge-budget  { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+  .badge-error   { background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25); }
+
+  .score-pill {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 6px; min-width: 30px; text-align: center;
+  }
+  .score-high { background: rgba(239,68,68,0.18); color: #f87171; }
+  .score-mid  { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .score-low  { background: rgba(255,255,255,0.06); color: var(--muted); }
+
+  .owasp-tag {
+    font-size: 10px; font-weight: 600; color: var(--purple);
+    background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.2);
+    padding: 2px 7px; border-radius: 5px;
+  }
+
+  .prompt-preview {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 10.5px; color: var(--muted);
+    background: rgba(0,0,0,0.3); border: 1px solid var(--faint);
+    border-radius: 8px; padding: 10px 12px;
+    max-height: 80px; overflow: hidden;
+    white-space: pre-wrap; word-break: break-word;
+    position: relative;
+  }
+  .prompt-preview::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 28px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.6));
+    border-radius: 0 0 8px 8px;
+  }
+
+  /* ── success spotlight ── */
+  .spotlight-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .spotlight-card {
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 14px; padding: 18px;
+  }
+  .spotlight-goal { font-size: 12px; color: var(--text); font-weight: 500; margin-bottom: 10px; line-height: 1.5; }
+  .spotlight-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .spotlight-prompt { font-family: monospace; font-size: 10px; color: var(--muted); background: rgba(0,0,0,0.3); border-radius: 6px; padding: 8px; max-height: 60px; overflow: hidden; word-break: break-word; }
+
+  /* ── footer ── */
+  .footer {
+    margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--faint);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .footer a { color: var(--purple); text-decoration: none; }
+
+  @media (max-width: 768px) {
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    .header    { flex-direction: column; gap: 20px; }
+    .header-right { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="header">
+    <div class="logo-area">
+      <div class="logo">Prompt<span>Strike</span></div>
+      <div class="tagline">Adversarial LLM Red Teaming · PAIR Algorithm · JailbreakBench Rubric</div>
+      <div class="meta-pills">
+        <span class="meta-pill"><b>Algorithm</b> PAIR — Chao et al. 2023</span>
+        <span class="meta-pill"><b>Target</b> {{ campaign.target }}</span>
+        <span class="meta-pill"><b>Judge</b> JailbreakBench 1–10</span>
+        <span class="meta-pill"><b>Generated</b> {{ campaign.created_at[:19] }}</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="campaign-name">{{ campaign.name }}</div>
+      <div class="campaign-sub">Campaign #{{ campaign.id }}</div>
+    </div>
+  </div>
+
+  <!-- ── KPIs ── -->
+  <div class="section-title">Overview</div>
+  <div class="kpi-grid">
+    <div class="kpi-card purple">
+      <div class="kpi-label">Goals Tested</div>
+      <div class="kpi-value">{{ total }}</div>
+      <div class="kpi-sub">behavior goals evaluated</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-label">Jailbroken</div>
+      <div class="kpi-value">{{ succeeded | length }}</div>
+      <div class="kpi-sub">safety guardrails bypassed</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-label">Attack Success Rate</div>
+      <div class="kpi-value">{{ asr }}%</div>
+      <div class="kpi-sub">ASR across all goals</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Defended</div>
+      <div class="kpi-value">{{ failed | length }}</div>
+      <div class="kpi-sub">attempts successfully blocked</div>
+    </div>
+  </div>
+
+  <!-- ── OWASP Breakdown ── -->
+  <div class="section-title">OWASP LLM Top 10 Breakdown</div>
+  <div class="card">
+    <div class="owasp-list">
+      {% for row in owasp_breakdown %}
+      <div class="owasp-row">
+        <div class="owasp-code">{{ row.code }}</div>
+        <div class="owasp-name">{{ row.label }}</div>
+        <div class="owasp-bar-wrap">
+          <div class="owasp-bar-fill {% if row.asr > 60 %}danger{% endif %}"
+               style="width: {{ [row.asr, 100] | min }}%"></div>
+        </div>
+        <div class="owasp-stat">{{ row.asr | round(0) | int }}%</div>
+        <div class="owasp-count">{{ row.succeeded }}/{{ row.total }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Category Heatmap ── -->
+  <div class="section-title">Category Breakdown</div>
+  <div class="cat-grid">
+    {% for cat, data in cat_counts.items() %}
+    {% set cat_asr = (data.succeeded / [data.total, 1] | max * 100) | round(0) | int %}
+    <div class="cat-chip {% if cat_asr >= 50 %}hot{% elif cat_asr >= 20 %}warn{% else %}safe{% endif %}">
+      <div class="cat-name">{{ cat.replace('_', ' ').title() }}</div>
+      <div class="cat-asr">{{ cat_asr }}% ASR · {{ data.succeeded }}/{{ data.total }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Successful Jailbreaks Spotlight ── -->
+  {% if succeeded %}
+  <div class="section-title">Successful Jailbreaks ({{ succeeded | length }})</div>
+  <div class="spotlight-grid">
+    {% for r in succeeded %}
+    <div class="spotlight-card">
+      <div class="spotlight-goal">{{ r.goal }}</div>
+      <div class="spotlight-meta">
+        <span class="badge badge-success">✓ jailbroken</span>
+        <span class="owasp-tag">{{ r.owasp }}</span>
+        <span class="score-pill score-high">{{ r.final_score }}/10</span>
+        <span style="font-size:10px;color:var(--muted);">{{ r.calls_used }} calls</span>
+      </div>
+      {% if r.winning_prompt %}
+      <div class="spotlight-prompt">{{ r.winning_prompt[:200] }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── Full Results Table ── -->
+  <div class="section-title">Full Run Log</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Category</th>
+          <th>OWASP</th>
+          <th>Goal</th>
+          <th>Calls</th>
+          <th>Score</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in runs %}
+        <tr>
+          <td style="color: var(--muted); font-size: 11px;">{{ r.behavior_id }}</td>
+          <td style="font-size: 11px; color: var(--muted);">{{ r.category }}</td>
+          <td><span class="owasp-tag">{{ r.owasp }}</span></td>
+          <td style="max-width: 340px; line-height: 1.5;">{{ r.goal[:90] }}{% if r.goal | length > 90 %}…{% endif %}</td>
+          <td style="text-align: center; color: var(--muted); font-size: 11px;">{{ r.calls_used }}</td>
+          <td style="text-align: center;">
+            {% if r.final_score >= 9 %}
+              <span class="score-pill score-high">{{ r.final_score }}</span>
+            {% elif r.final_score >= 5 %}
+              <span class="score-pill score-mid">{{ r.final_score }}</span>
+            {% else %}
+              <span class="score-pill score-low">{{ r.final_score }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.status == 'success' %}
+              <span class="badge badge-success">✓ success</span>
+            {% elif r.status == 'failed' %}
+              <span class="badge badge-failed">✗ failed</span>
+            {% elif r.status == 'budget_exceeded' %}
+              <span class="badge badge-budget">⚡ budget</span>
+            {% else %}
+              <span class="badge badge-error">⚠ error</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="footer">
+    <div>PromptStrike v0.1 · Authorized red teaming only</div>
+    <div>
+      <a href="https://arxiv.org/abs/2310.08419">PAIR paper</a> ·
+      <a href="https://jailbreakbench.github.io">JailbreakBench</a> ·
+      <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">OWASP LLM Top 10</a>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

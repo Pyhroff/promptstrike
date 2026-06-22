@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptStrike Sweep — {{ sweep_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #050714;
+      --surface: rgba(255,255,255,0.03);
+      --border:  rgba(255,255,255,0.06);
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --accent:  #7c3aed;
+      --accent2: #2563eb;
+      --red:     #ef4444;
+      --amber:   #f59e0b;
+      --green:   #22c55e;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+
+    /* ── header ── */
+    .page-header {
+      background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(37,99,235,0.08) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 36px 52px 32px;
+    }
+    .logo {
+      font-size:10px; font-weight:700; color:var(--accent);
+      letter-spacing:3px; text-transform:uppercase; margin-bottom:10px;
+      display:flex; align-items:center; gap:8px;
+    }
+    .logo::before {
+      content:''; display:inline-block; width:6px; height:6px;
+      background:var(--accent); border-radius:50%;
+      box-shadow:0 0 8px var(--accent);
+    }
+    .sweep-title { font-size:30px; font-weight:700; letter-spacing:-0.5px; margin-bottom:6px; }
+    .sweep-subtitle { font-size:12px; color:var(--muted); }
+    .algo-badge {
+      display:inline-flex; align-items:center; padding:3px 10px;
+      background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.25);
+      border-radius:999px; font-size:10px; font-weight:700; color:#a78bfa;
+      margin-left:8px; letter-spacing:1px;
+    }
+
+    /* ── layout ── */
+    .container { max-width:1240px; margin:0 auto; padding:44px 52px; }
+
+    /* ── KPI grid ── */
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:44px; }
+    .kpi-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:14px; padding:20px 22px;
+      position:relative; overflow:hidden;
+      backdrop-filter:blur(10px);
+    }
+    .kpi-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:2px;
+      background:linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    .kpi-card.danger::before { background:linear-gradient(90deg, var(--red), #f97316); }
+    .kpi-label { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+    .kpi-value { font-size:30px; font-weight:700; line-height:1; }
+    .kpi-value.red { color:var(--red); }
+    .kpi-value.sm  { font-size:16px; margin-top:4px; word-break:break-all; }
+    .kpi-sub { font-size:11px; color:var(--muted); margin-top:6px; }
+
+    /* ── section title ── */
+    .section-title {
+      font-size:10px; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:2px;
+      margin:44px 0 18px; padding-bottom:10px;
+      border-bottom:1px solid var(--border);
+    }
+
+    /* ── rankings ── */
+    .rankings-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(290px,1fr)); gap:14px; }
+    .rank-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:14px; padding:22px;
+      backdrop-filter:blur(10px);
+      transition:border-color .2s;
+    }
+    .rank-card:hover { border-color:rgba(124,58,237,0.3); }
+    .rank-card.top-1 { border-color:rgba(239,68,68,0.25); background:rgba(239,68,68,0.04); }
+    .rank-card.top-2 { border-color:rgba(245,158,11,0.2); }
+    .rank-badge {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:26px; height:26px; border-radius:50%;
+      font-size:11px; font-weight:700; margin-bottom:12px;
+      background:rgba(255,255,255,0.06); color:var(--muted);
+    }
+    .top-1 .rank-badge { background:rgba(239,68,68,0.18); color:var(--red); }
+    .top-2 .rank-badge { background:rgba(245,158,11,0.18); color:var(--amber); }
+    .top-3 .rank-badge { background:rgba(34,197,94,0.18);  color:var(--green); }
+    .rank-target  { font-size:13px; font-weight:600; margin-bottom:3px; word-break:break-all; line-height:1.4; }
+    .rank-camp    { font-size:10px; color:var(--muted); margin-bottom:16px; }
+    .asr-track    { background:rgba(255,255,255,0.06); border-radius:999px; height:7px; overflow:hidden; margin-bottom:8px; }
+    .asr-fill     { height:100%; border-radius:999px; min-width:2px; }
+    .asr-fill.red   { background:linear-gradient(90deg,#ef4444,#f97316); }
+    .asr-fill.amber { background:linear-gradient(90deg,#f59e0b,#eab308); }
+    .asr-fill.green { background:linear-gradient(90deg,#22c55e,#16a34a); }
+    .asr-pct    { font-size:22px; font-weight:700; margin-bottom:8px; }
+    .asr-pct.red   { color:var(--red); }
+    .asr-pct.amber { color:var(--amber); }
+    .asr-pct.green { color:var(--green); }
+    .rank-stats { display:flex; gap:10px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
+
+    /* ── heatmap ── */
+    .heatmap-wrapper { overflow-x:auto; border-radius:14px; border:1px solid var(--border); }
+    .heatmap { width:100%; border-collapse:collapse; font-size:12px; }
+    .heatmap thead th {
+      padding:12px 14px; text-align:left;
+      font-size:10px; font-weight:600; color:var(--muted);
+      text-transform:uppercase; letter-spacing:1px;
+      background:rgba(255,255,255,0.02);
+      border-bottom:1px solid var(--border);
+    }
+    .heatmap thead th:not(:first-child) { text-align:center; }
+    .heatmap tbody td { padding:11px 14px; border-bottom:1px solid rgba(255,255,255,0.025); }
+    .heatmap tbody tr:last-child td { border-bottom:none; }
+    .heatmap tbody tr:hover td { background:rgba(255,255,255,0.02); }
+    .cat-label { font-weight:500; white-space:nowrap; }
+    .hmap-cell { text-align:center; font-weight:700; font-size:12px; border-radius:6px; padding:4px 8px; }
+    .hmap-red   { color:var(--red); }
+    .hmap-amber { color:var(--amber); }
+    .hmap-green { color:var(--green); }
+    .hmap-none  { color:var(--muted); font-weight:400; }
+
+    /* ── spotlights ── */
+    .spotlight-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px; }
+    .spotlight-card {
+      background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.15);
+      border-radius:14px; padding:18px;
+    }
+    .spot-model  { font-size:10px; color:var(--muted); margin-bottom:6px; font-family:monospace; }
+    .spot-goal   { font-size:12px; font-weight:500; margin-bottom:10px; line-height:1.5; }
+    .spot-meta   { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:10px; }
+    .spot-prompt {
+      font-family:monospace; font-size:10px; color:var(--muted);
+      background:rgba(0,0,0,0.3); border-radius:6px;
+      padding:8px; max-height:52px; overflow:hidden; word-break:break-word;
+    }
+
+    /* ── badges ── */
+    .badge         { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:600; }
+    .badge-success { background:rgba(34,197,94,0.15); color:var(--green); border:1px solid rgba(34,197,94,0.2); }
+    .owasp-tag     { background:rgba(124,58,237,0.15); color:#a78bfa; border:1px solid rgba(124,58,237,0.2); padding:2px 8px; border-radius:999px; font-size:10px; font-weight:600; }
+    .score-pill    { display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; background:rgba(239,68,68,0.15); color:var(--red); border:1px solid rgba(239,68,68,0.2); }
+
+    /* ── footer ── */
+    .footer {
+      margin-top:64px; padding-top:24px;
+      border-top:1px solid var(--border);
+      font-size:11px; color:var(--muted); line-height:2;
+    }
+    .footer a { color:var(--accent); text-decoration:none; }
+    .footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="logo">PromptStrike</div>
+    <div class="sweep-title">
+      Multi-Model Sweep
+      <span class="algo-badge">{{ algo|upper }}</span>
+    </div>
+    <div class="sweep-subtitle">
+      {{ sweep_name }} · {{ generated_at }} ·
+      {{ total_targets }} targets · {{ total_behaviors }} behaviors/target
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Models Tested</div>
+        <div class="kpi-value">{{ total_targets }}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Behaviors / Target</div>
+        <div class="kpi-value">{{ total_behaviors }}</div>
+      </div>
+      <div class="kpi-card{% if total_jailbreaks > 0 %} danger{% endif %}">
+        <div class="kpi-label">Total Jailbreaks</div>
+        <div class="kpi-value{% if total_jailbreaks > 0 %} red{% endif %}">{{ total_jailbreaks }}</div>
+        <div class="kpi-sub">across all models</div>
+      </div>
+      <div class="kpi-card{% if most_vulnerable_asr >= 30 %} danger{% endif %}">
+        <div class="kpi-label">Most Vulnerable</div>
+        <div class="kpi-value sm">{{ most_vulnerable.split('/')[-1] }}</div>
+        <div class="kpi-sub">ASR {{ most_vulnerable_asr }}%</div>
+      </div>
+    </div>
+
+    <!-- Model Rankings -->
+    <div class="section-title">Model Rankings  <span style="color:var(--muted);font-weight:400;">(sorted by ASR, highest = most vulnerable)</span></div>
+    <div class="rankings-grid">
+      {% for r in results %}
+      {% set col = "red" if r.asr >= 30 else ("amber" if r.asr >= 10 else "green") %}
+      <div class="rank-card{% if loop.index == 1 %} top-1{% elif loop.index == 2 %} top-2{% elif loop.index == 3 %} top-3{% endif %}">
+        <div class="rank-badge">#{{ loop.index }}</div>
+        <div class="rank-target">{{ r.target }}</div>
+        <div class="rank-camp">Campaign #{{ r.campaign_id }}</div>
+        <div class="asr-track">
+          <div class="asr-fill {{ col }}" style="width:{{ [r.asr, 100]|min }}%"></div>
+        </div>
+        <div class="asr-pct {{ col }}">{{ r.asr }}%</div>
+        <div class="rank-stats">
+          <span>{{ r.succeeded }}/{{ r.total }} jailbroken</span>
+          <span>·</span>
+          <span>{{ r.calls_used }} calls</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Category Heatmap -->
+    <div class="section-title">Category Heatmap</div>
+    <div class="heatmap-wrapper">
+      <table class="heatmap">
+        <thead>
+          <tr>
+            <th>Category</th>
+            {% for r in results %}
+            <th title="{{ r.target }}">{{ r.target.split('/')[-1][:16] }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat in categories %}
+          <tr>
+            <td class="cat-label">{{ cat }}</td>
+            {% for r in results %}
+            {% set cell = matrix[cat][r.target] %}
+            {% if cell.total == 0 or cell.asr is none %}
+              <td class="hmap-cell hmap-none">—</td>
+            {% elif cell.asr >= 30 %}
+              <td class="hmap-cell hmap-red">{{ cell.asr|int }}%</td>
+            {% elif cell.asr >= 10 %}
+              <td class="hmap-cell hmap-amber">{{ cell.asr|int }}%</td>
+            {% else %}
+              <td class="hmap-cell hmap-green">{{ cell.asr|int }}%</td>
+            {% endif %}
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Notable Jailbreaks -->
+    {% if all_jailbreaks %}
+    <div class="section-title">Notable Jailbreaks <span style="font-weight:400;color:var(--muted);">(top {{ all_jailbreaks|length }} by score)</span></div>
+    <div class="spotlight-grid">
+      {% for j in all_jailbreaks %}
+      <div class="spotlight-card">
+        <div class="spot-model">{{ j.model }}</div>
+        <div class="spot-goal">{{ j.goal }}</div>
+        <div class="spot-meta">
+          <span class="badge badge-success">✓ jailbroken</span>
+          {% if j.owasp %}<span class="owasp-tag">{{ j.owasp }}</span>{% endif %}
+          <span class="score-pill">{{ j.final_score }}/10</span>
+          <span style="font-size:10px;color:var(--muted);">{{ j.calls_used }} calls</span>
+        </div>
+        {% if j.winning_prompt %}
+        <div class="spot-prompt">{{ j.winning_prompt[:180] }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="footer">
+      <strong>PromptStrike</strong> — Adversarial LLM Red Teaming Framework<br>
+      PAIR: Chao et al. 2023 · <a href="https://arxiv.org/abs/2310.08419">arXiv:2310.08419</a> &nbsp;|&nbsp;
+      TAP: Mehrotra et al. 2023 · <a href="https://arxiv.org/abs/2312.02119">arXiv:2312.02119</a> &nbsp;|&nbsp;
+      Judge rubric: JailbreakBench · <a href="https://arxiv.org/abs/2404.01318">arXiv:2404.01318</a><br>
+      OWASP LLM Top 10 · <a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/">owasp.org/llm-top-10</a>
+    </div>
+
+  </div><!-- /container -->
+</body>
+</html>
