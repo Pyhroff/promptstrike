@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     tap_depth: int = 3
     tap_pruning_threshold: int = 4
 
+    # Crescendo-specific
+    crescendo_max_turns: int = 6
+    crescendo_max_backtracks: int = 3
+
     # Dashboard
     dashboard_host: str = "127.0.0.1"
     dashboard_port: int = 8080

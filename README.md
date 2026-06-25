@@ -2,7 +2,7 @@
 
 **Automated adversarial red teaming for large language models.**
 
-PromptStrike implements **PAIR** and **TAP** — two state-of-the-art black-box jailbreak algorithms from academic literature — as a production-grade CLI tool with a live WebSocket dashboard, multi-model sweep comparison, and a CI/CD safety gate.
+PromptStrike implements **PAIR**, **TAP**, and **Crescendo** — three state-of-the-art black-box jailbreak algorithms from academic literature — as a production-grade CLI tool with a live WebSocket dashboard, multi-model sweep comparison, and a CI/CD safety gate.
 
 ```bash
 # attack a single model
@@ -18,8 +18,8 @@ promptstrike ci --budget 50 --asr-threshold 5 --json
 ```
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-30%20passed-brightgreen?style=flat-square)
-![Algorithms](https://img.shields.io/badge/Algorithms-PAIR%20%7C%20TAP-red?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-40%20passed-brightgreen?style=flat-square)
+![Algorithms](https://img.shields.io/badge/Algorithms-PAIR%20%7C%20TAP%20%7C%20Crescendo-red?style=flat-square)
 ![Judge](https://img.shields.io/badge/Judge-JailbreakBench%20rubric-orange?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
@@ -53,7 +53,7 @@ Results persist to SQLite and export as **OWASP LLM Top 10 mapped HTML reports**
 
 | | Feature |
 |---|---|
-| ⚔️ | **Two attack algorithms** — PAIR (Chao et al. 2023) and TAP (Mehrotra et al. 2023) |
+| ⚔️ | **Three attack algorithms** — PAIR (Chao et al. 2023), TAP (Mehrotra et al. 2023), Crescendo (Russinovich et al. 2024) |
 | 🎯 | **50 behavior goals** across 10 categories, each tagged to OWASP LLM01–LLM09 |
 | 🤖 | **Multi-provider targets** — Groq, OpenAI, Ollama (any local model) |
 | 📊 | **Glassmorphism HTML reports** — OWASP breakdown, attack spotlights, per-run table |
@@ -123,7 +123,7 @@ promptstrike report --campaign 1 --output report.html
 promptstrike scan [OPTIONS]
 
   --target   -t   Provider/model string      [default: groq/llama-3.3-70b-versatile]
-  --algo     -a   Attack algorithm           pair | tap  [default: pair]
+  --algo     -a   Attack algorithm           pair | tap | crescendo  [default: pair]
   --goals    -g   Number of behavior goals   [default: all 50]
   --category -c   Filter by category         cybercrime | malware | fraud | …
   --max-iter      PAIR iterations per goal   [default: 20]
@@ -138,7 +138,7 @@ promptstrike scan [OPTIONS]
 promptstrike ci [OPTIONS]
 
   --target          Provider/model string    [default: groq/llama-3.3-70b-versatile]
-  --algo            Attack algorithm         pair | tap  [default: pair]
+  --algo            Attack algorithm         pair | tap | crescendo  [default: pair]
   --goals           Goals to test            [default: all 50]
   --budget          Max API calls            [default: 50]
   --asr-threshold   Fail if ASR% > this      [default: 10.0]
@@ -242,6 +242,7 @@ promptstrike/
 │   ├── core/
 │   │   ├── pair.py               # PAIR algorithm (Chao et al. 2023)
 │   │   ├── tap.py                # TAP algorithm  (Mehrotra et al. 2023)
+│   │   ├── crescendo.py          # Crescendo algorithm (Russinovich et al. 2024)
 │   │   ├── judge.py              # JailbreakBench judge (1–10 rubric)
 │   │   └── prompts.py            # Shared attacker + judge prompt templates
 │   ├── api/
@@ -256,10 +257,11 @@ promptstrike/
 │           ├── report.html       # Single-campaign report template
 │           └── sweep_report.html # Multi-model comparison template
 └── tests/
-    ├── test_pair.py              # PAIR core — 9 tests
-    ├── test_tap.py               # TAP core  — 9 tests
-    ├── test_api.py               # FastAPI   — 6 tests
-    └── test_ci.py                # CI gate   — 6 tests
+    ├── test_pair.py              # PAIR core      — 9 tests
+    ├── test_tap.py               # TAP core       — 9 tests
+    ├── test_crescendo.py         # Crescendo core — 10 tests
+    ├── test_api.py               # FastAPI        — 6 tests
+    └── test_ci.py                # CI gate        — 6 tests
 ```
 
 ---
@@ -271,7 +273,7 @@ promptstrike/
 | **PAIR** | Chao et al. 2023 — *Jailbreaking Black Box LLMs in Twenty Queries* · [arXiv:2310.08419](https://arxiv.org/abs/2310.08419) | ✅ |
 | **TAP** | Mehrotra et al. 2023 — *Tree of Attacks with Pruning* · [arXiv:2312.02119](https://arxiv.org/abs/2312.02119) | ✅ |
 | **GCG** | Zou et al. 2023 — *Universal Adversarial Attacks on LLMs* · [arXiv:2307.15043](https://arxiv.org/abs/2307.15043) | 🔜 |
-| **Crescendo** | Russinovich et al. 2024 · [arXiv:2404.01833](https://arxiv.org/abs/2404.01833) | 🔜 |
+| **Crescendo** | Russinovich et al. 2024 · [arXiv:2404.01833](https://arxiv.org/abs/2404.01833) | ✅ |
 
 ---
 

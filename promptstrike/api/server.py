@@ -22,6 +22,7 @@ from promptstrike.adapters.ollama import OllamaAdapter
 from promptstrike.config import settings
 from promptstrike.core.pair import run_pair, AttackStatus
 from promptstrike.core.tap import run_tap
+from promptstrike.core.crescendo import run_crescendo
 from promptstrike.storage.db import Database
 from promptstrike.report.generator import generate_html_report
 
@@ -38,7 +39,7 @@ _active_scans: dict[str, asyncio.Queue] = {}
 
 class ScanRequest(BaseModel):
     target: str = "groq/llama-3.3-70b-versatile"
-    algorithm: str = "pair"          # pair | tap
+    algorithm: str = "pair"          # pair | tap | crescendo
     goals: int | None = None
     category: str | None = None
     max_iter: int = 20
@@ -186,6 +187,8 @@ async def _run_scan(scan_id: str, req: ScanRequest, queue: asyncio.Queue) -> Non
                 event["goal_idx"] = idx + 1
                 await queue.put(event)
 
+            from promptstrike.core.pair import PairResult
+
             if req.algorithm == "tap":
                 result_tap = await run_tap(
                     behavior_id=beh["id"],
@@ -203,10 +206,6 @@ async def _run_scan(scan_id: str, req: ScanRequest, queue: asyncio.Queue) -> Non
                 total_calls += result_tap.calls_used
                 if result_tap.status == AttackStatus.SUCCESS:
                     succeeded += 1
-
-                # Convert to pair-compatible for storage
-                from promptstrike.core.pair import PairResult, Iteration
-                from promptstrike.core.judge import JudgeResult
                 compat = PairResult(
                     behavior_id=beh["id"],
                     goal=beh["goal"],
@@ -219,6 +218,39 @@ async def _run_scan(scan_id: str, req: ScanRequest, queue: asyncio.Queue) -> Non
                 db.save_run(campaign_id, compat, beh.get("category",""), beh.get("owasp",""))
                 status = result_tap.status
                 final_score = result_tap.final_score
+            elif req.algorithm == "crescendo":
+                result_cr = await run_crescendo(
+                    behavior_id=beh["id"],
+                    goal=beh["goal"],
+                    target=target_adapter,
+                    attacker=attacker,
+                    judge=judge,
+                    max_turns=settings.crescendo_max_turns,
+                    max_backtracks=settings.crescendo_max_backtracks,
+                    call_budget=req.budget - total_calls,
+                    judge_threshold=settings.judge_threshold,
+                    on_event=emit,
+                )
+                total_calls += result_cr.calls_used
+                if result_cr.status == AttackStatus.SUCCESS:
+                    succeeded += 1
+                turn_lines = [
+                    f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}] "
+                    f"score={t.judge.score}: {t.user_message}"
+                    for t in result_cr.turns
+                ]
+                compat = PairResult(
+                    behavior_id=beh["id"],
+                    goal=beh["goal"],
+                    target_model=result_cr.target_model,
+                    status=result_cr.status,
+                    winning_prompt="\n\n".join(turn_lines) or result_cr.winning_prompt,
+                    final_score=result_cr.final_score,
+                    calls_used=result_cr.calls_used,
+                )
+                db.save_run(campaign_id, compat, beh.get("category",""), beh.get("owasp",""))
+                status = result_cr.status
+                final_score = result_cr.final_score
             else:
                 result_pair = await run_pair(
                     behavior_id=beh["id"],

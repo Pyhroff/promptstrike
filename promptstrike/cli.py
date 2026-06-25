@@ -31,6 +31,7 @@ from promptstrike.adapters.ollama import OllamaAdapter
 from promptstrike.config import settings
 from promptstrike.core.pair import AttackStatus, run_pair, PairResult
 from promptstrike.core.tap import run_tap
+from promptstrike.core.crescendo import run_crescendo
 from promptstrike.storage.db import Database
 from promptstrike.report.generator import generate_html_report, generate_sweep_report
 
@@ -119,6 +120,32 @@ async def _run_quiet_campaign(
             total_calls += tap_r.calls_used
             if tap_r.status == AttackStatus.SUCCESS:
                 succeeded += 1
+        elif algo == "crescendo":
+            crescendo_r = await run_crescendo(
+                behavior_id=beh["id"], goal=beh["goal"],
+                target=target_adapter, attacker=attacker_adapter, judge=judge_adapter,
+                max_turns=settings.crescendo_max_turns,
+                max_backtracks=settings.crescendo_max_backtracks,
+                call_budget=budget - total_calls,
+                judge_threshold=settings.judge_threshold,
+            )
+            # Render the full turn sequence so HTML reports show the escalation
+            turn_lines = [
+                f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}] "
+                f"score={t.judge.score}: {t.user_message}"
+                for t in crescendo_r.turns
+            ]
+            compat = PairResult(
+                behavior_id=beh["id"], goal=beh["goal"],
+                target_model=crescendo_r.target_model, status=crescendo_r.status,
+                winning_prompt="\n\n".join(turn_lines) or crescendo_r.winning_prompt,
+                final_score=crescendo_r.final_score,
+                calls_used=crescendo_r.calls_used,
+            )
+            db.save_run(campaign_id, compat, beh.get("category", ""), beh.get("owasp", ""))
+            total_calls += crescendo_r.calls_used
+            if crescendo_r.status == AttackStatus.SUCCESS:
+                succeeded += 1
         else:
             pair_r = await run_pair(
                 behavior_id=beh["id"], goal=beh["goal"],
@@ -161,11 +188,12 @@ def scan(
     Run an adversarial scan against a target LLM.
 
     Algorithms:\n
-      • [yellow]PAIR[/] (Chao et al. 2023) — iterative single-chain refinement\n
-      • [yellow]TAP[/]  (Mehrotra et al. 2023) — tree search with branching + pruning
+      • [yellow]PAIR[/]      (Chao et al. 2023)      — iterative single-chain refinement\n
+      • [yellow]TAP[/]       (Mehrotra et al. 2023)  — tree search with branching + pruning\n
+      • [yellow]Crescendo[/] (Russinovich et al. 2024) — multi-turn escalation attack
     """
-    if algo not in ("pair", "tap"):
-        console.print(f"[red]Unknown algorithm '{algo}'. Choose: pair | tap[/]")
+    if algo not in ("pair", "tap", "crescendo"):
+        console.print(f"[red]Unknown algorithm '{algo}'. Choose: pair | tap | crescendo[/]")
         raise typer.Exit(1)
     asyncio.run(_scan_async(target=target, algo=algo, goals=goals, category=category,
                              max_iter=max_iter, budget=budget, campaign_name=campaign_name,
@@ -222,6 +250,32 @@ async def _scan_async(target, algo, goals, category, max_iter, budget, campaign_
                 total_calls += tap_r.calls_used
                 status, final_score = tap_r.status, tap_r.final_score
                 iter_label = f"{len(tap_r.nodes)}n d{tap_r.max_depth_reached}"
+            elif algo == "crescendo":
+                crescendo_r = await run_crescendo(
+                    behavior_id=beh["id"], goal=beh["goal"],
+                    target=target_adapter, attacker=attacker_adapter, judge=judge_adapter,
+                    max_turns=settings.crescendo_max_turns,
+                    max_backtracks=settings.crescendo_max_backtracks,
+                    call_budget=budget - total_calls,
+                    judge_threshold=settings.judge_threshold,
+                )
+                turn_lines = [
+                    f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}] "
+                    f"score={t.judge.score}: {t.user_message}"
+                    for t in crescendo_r.turns
+                ]
+                compat = PairResult(
+                    behavior_id=beh["id"], goal=beh["goal"],
+                    target_model=crescendo_r.target_model, status=crescendo_r.status,
+                    winning_prompt="\n\n".join(turn_lines) or crescendo_r.winning_prompt,
+                    final_score=crescendo_r.final_score,
+                    calls_used=crescendo_r.calls_used,
+                )
+                db.save_run(campaign_id, compat, beh.get("category",""), beh.get("owasp",""))
+                total_calls += crescendo_r.calls_used
+                status, final_score = crescendo_r.status, crescendo_r.final_score
+                n_bt = crescendo_r.backtracks_used
+                iter_label = f"{len(crescendo_r.turns)}t" + (f" bt{n_bt}" if n_bt else "")
             else:
                 pair_r = await run_pair(
                     behavior_id=beh["id"], goal=beh["goal"],
@@ -548,12 +602,18 @@ def serve(
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _print_banner(name, target, algo, n_goals, max_iter, budget):
-    detail = (
-        f"PAIR (Chao et al. 2023) · max {max_iter} iters/goal"
-        if algo == "pair" else
-        f"TAP (Mehrotra et al. 2023) · branch={settings.tap_branching_factor} "
-        f"depth={settings.tap_depth}"
-    )
+    if algo == "pair":
+        detail = f"PAIR (Chao et al. 2023) · max {max_iter} iters/goal"
+    elif algo == "crescendo":
+        detail = (
+            f"Crescendo (Russinovich et al. 2024) · "
+            f"turns={settings.crescendo_max_turns} backtracks={settings.crescendo_max_backtracks}"
+        )
+    else:
+        detail = (
+            f"TAP (Mehrotra et al. 2023) · branch={settings.tap_branching_factor} "
+            f"depth={settings.tap_depth}"
+        )
     console.print(Panel(
         f"[bold red]PromptStrike v0.1[/]  |  [yellow]{algo.upper()}[/]  —  {detail}\n\n"
         f"  Campaign : {name}\n"
