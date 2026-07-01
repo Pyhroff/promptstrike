@@ -4,6 +4,34 @@ All notable changes to PromptStrike are documented here.
 
 ---
 
+## [0.2.0] — 2026-07-02
+
+### Added
+
+#### GCG white-box attack (Zou et al. 2023)
+- `promptstrike/core/gcg.py` — full GCG implementation: token-level coordinate descent using ∂loss/∂embedding gradients
+- `ModelInterface` — runtime-checkable Protocol; any class implementing `vocab_size`, `token_gradients()`, `forward_loss()`, etc. works as a target
+- `HuggingFaceModel` — optional production adapter (requires `pip install 'promptstrike[gcg]'`; torch + transformers)
+- `_topk_token_candidates()` — selects k most negative gradient positions, filters blocked token IDs
+- `run_gcg()` — main entry point: random suffix init → per-step gradient + batch substitution scoring → greedy coord descent → early stop on loss_threshold
+- `GCGResult` — dataclass with `adversarial_prompt` property concatenating goal + suffix
+- `gcg` CLI command — `promptstrike gcg "<goal>" --model distilgpt2 --steps 200 --suffix-len 20`
+
+#### Defense Shield module
+- `promptstrike/defense/scanner.py` — 10-rule input scanner producing `ScanResult` with `risk_score` 0–1; rules: role_override_dan, instruction_override, synthetic_system_prompt, base64_payload, rot13_obfuscation, hypothetical_framing, crescendo_escalation, token_bracket_spam, zero_width_chars, excessive_unicode_escapes
+- `promptstrike/defense/classifier.py` — output jailbreak classifier; compliance / refusal / hedge pattern banks; step-count bonus; `escape_probability` 0–1; `is_jailbroken` at configurable threshold
+- `promptstrike/defense/shield.py` — `ShieldedAdapter` transparent proxy; `ShieldBlockedError`; `chat_shielded()` non-raising variant with full `ShieldedResponse` metadata; `last_scan` / `last_classify` introspection properties
+- `defend` CLI command — `promptstrike defend "<prompt>" [--output "<response>"] [--threshold 0.5] [--json]`
+
+#### Optional dependency group
+- `[gcg]` extras: `torch>=2.2`, `transformers>=4.40` — install with `pip install 'promptstrike[gcg]'`
+
+#### Tests (16 new, 56 total)
+- `tests/test_gcg.py` (8) — topk selection, loss descent, early convergence, error handling, seed reproducibility, `ModelInterface` Protocol check, adversarial prompt concatenation
+- `tests/test_defense.py` (8) — scanner rules (clean pass, DAN detection, synthetic system prompt, zero-width chars, score cap), classifier (compliant/refusal/hedged), shield (clean pass, DAN block, soft_block, output classification)
+
+---
+
 ## [0.1.0] — 2026-06-22
 
 ### Added
