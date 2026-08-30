@@ -2,9 +2,9 @@ name: LLM Safety Gate
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
     inputs:
       asr_threshold:
@@ -41,8 +41,10 @@ jobs:
     name: LLM Safety Gate
     runs-on: ubuntu-latest
     needs: test
-    # Only run on pushes to main and manual triggers — not on every PR
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # Manual trigger only — requires a GROQ_API_KEY repo secret, which isn't
+    # configured for automatic push/PR runs. Run via workflow_dispatch once
+    # the secret is set, or restore push/pull_request here after that.
+    if: github.event_name == 'workflow_dispatch'
 
     steps:
       - uses: actions/checkout@v4
