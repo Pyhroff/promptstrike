@@ -117,18 +117,26 @@ async def run_tap(
             result.status = AttackStatus.BUDGET
             return result
 
-        prompt = await _generate_attack(goal, None, None, None, attacker)
-        result.calls_used += 1
-        if not prompt:
-            continue
+        try:
+            prompt = await _generate_attack(goal, None, None, None, attacker)
+            result.calls_used += 1
+            if not prompt:
+                continue
 
-        response = await target.chat([ChatMessage(role="user", content=prompt)])
-        result.calls_used += 1
+            response = await target.chat([ChatMessage(role="user", content=prompt)])
+            result.calls_used += 1
 
-        j = await judge_score(goal=goal, response=response, adapter=judge, threshold=judge_threshold)
-        result.calls_used += 1
+            j = await judge_score(goal=goal, response=response, adapter=judge, threshold=judge_threshold)
+            result.calls_used += 1
+        except Exception as exc:  # noqa: BLE001
+            result.status = AttackStatus.ERROR
+            result.nodes.append(TAPNode(
+                prompt="[error]", response=str(exc), score=0, depth=0,
+                judge=JudgeResult(score=0, reasoning=str(exc), is_jailbroken=False),
+            ))
+            return result
+
         node_count += 1
-
         node = TAPNode(prompt=prompt, response=response, score=j.score, depth=0, judge=j)
         result.nodes.append(node)
 
@@ -178,23 +186,31 @@ async def run_tap(
                         result.final_score = max(n.score for n in result.nodes)
                     return result
 
-                child_prompt = await _generate_attack(
-                    goal, parent_prompt, parent_response, parent_score, attacker
-                )
-                result.calls_used += 1
-                if not child_prompt:
-                    continue
+                try:
+                    child_prompt = await _generate_attack(
+                        goal, parent_prompt, parent_response, parent_score, attacker
+                    )
+                    result.calls_used += 1
+                    if not child_prompt:
+                        continue
 
-                child_response = await target.chat([ChatMessage(role="user", content=child_prompt)])
-                result.calls_used += 1
+                    child_response = await target.chat([ChatMessage(role="user", content=child_prompt)])
+                    result.calls_used += 1
 
-                j = await judge_score(
-                    goal=goal, response=child_response,
-                    adapter=judge, threshold=judge_threshold,
-                )
-                result.calls_used += 1
+                    j = await judge_score(
+                        goal=goal, response=child_response,
+                        adapter=judge, threshold=judge_threshold,
+                    )
+                    result.calls_used += 1
+                except Exception as exc:  # noqa: BLE001
+                    result.status = AttackStatus.ERROR
+                    result.nodes.append(TAPNode(
+                        prompt="[error]", response=str(exc), score=0, depth=d,
+                        judge=JudgeResult(score=0, reasoning=str(exc), is_jailbroken=False),
+                    ))
+                    return result
+
                 node_count += 1
-
                 node = TAPNode(
                     prompt=child_prompt, response=child_response,
                     score=j.score, depth=d, judge=j,

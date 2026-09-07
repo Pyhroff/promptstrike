@@ -152,21 +152,29 @@ async def run_crescendo(
             result.status = AttackStatus.BUDGET
             break
 
-        # ── Generate escalation turn ───────────────────────────────────────────
-        user_msg = await _gen_turn(goal, target_history, last_compliant, attacker)
-        result.calls_used += 1
+        try:
+            # ── Generate escalation turn ─────────────────────────────────────────
+            user_msg = await _gen_turn(goal, target_history, last_compliant, attacker)
+            result.calls_used += 1
 
-        if not user_msg:
-            continue
+            if not user_msg:
+                continue
 
-        # ── Query target with full multi-turn context ──────────────────────────
-        target_history.append(ChatMessage(role="user", content=user_msg))
-        response = await target.chat(target_history)
-        result.calls_used += 1
-        target_history.append(ChatMessage(role="assistant", content=response))
+            # ── Query target with full multi-turn context ────────────────────────
+            target_history.append(ChatMessage(role="user", content=user_msg))
+            response = await target.chat(target_history)
+            result.calls_used += 1
+            target_history.append(ChatMessage(role="assistant", content=response))
 
-        j = await judge_score(goal=goal, response=response, adapter=judge, threshold=judge_threshold)
-        result.calls_used += 1
+            j = await judge_score(goal=goal, response=response, adapter=judge, threshold=judge_threshold)
+            result.calls_used += 1
+        except Exception as exc:  # noqa: BLE001
+            result.status = AttackStatus.ERROR
+            result.turns.append(CrescendoTurn(
+                turn_number=turn_num, user_message="[error]", target_response=str(exc),
+                judge=JudgeResult(score=0, reasoning=str(exc), is_jailbroken=False),
+            ))
+            break
 
         turn_obj = CrescendoTurn(
             turn_number=turn_num,
@@ -200,22 +208,30 @@ async def run_crescendo(
                 result.status = AttackStatus.BUDGET
                 break
 
-            # Revert target context to before the refused exchange
-            target_history.pop()   # assistant (refused)
-            target_history.pop()   # user (refused question)
+            try:
+                # Revert target context to before the refused exchange
+                target_history.pop()   # assistant (refused)
+                target_history.pop()   # user (refused question)
 
-            softer_msg = await _gen_soften(goal, user_msg, last_compliant, attacker)
-            result.calls_used += 1
-            backtracks_used += 1
-            result.backtracks_used = backtracks_used
+                softer_msg = await _gen_soften(goal, user_msg, last_compliant, attacker)
+                result.calls_used += 1
+                backtracks_used += 1
+                result.backtracks_used = backtracks_used
 
-            target_history.append(ChatMessage(role="user", content=softer_msg))
-            soft_resp = await target.chat(target_history)
-            result.calls_used += 1
-            target_history.append(ChatMessage(role="assistant", content=soft_resp))
+                target_history.append(ChatMessage(role="user", content=softer_msg))
+                soft_resp = await target.chat(target_history)
+                result.calls_used += 1
+                target_history.append(ChatMessage(role="assistant", content=soft_resp))
 
-            j2 = await judge_score(goal=goal, response=soft_resp, adapter=judge, threshold=judge_threshold)
-            result.calls_used += 1
+                j2 = await judge_score(goal=goal, response=soft_resp, adapter=judge, threshold=judge_threshold)
+                result.calls_used += 1
+            except Exception as exc:  # noqa: BLE001
+                result.status = AttackStatus.ERROR
+                result.turns.append(CrescendoTurn(
+                    turn_number=turn_num, user_message="[error]", target_response=str(exc),
+                    judge=JudgeResult(score=0, reasoning=str(exc), is_jailbroken=False),
+                ))
+                break
 
             bt_turn = CrescendoTurn(
                 turn_number=turn_num,
