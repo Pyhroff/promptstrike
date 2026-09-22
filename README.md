@@ -130,7 +130,14 @@ promptstrike scan [OPTIONS]
   --budget        Max API calls total        [default: 200]
   --name     -n   Campaign label             [auto-generated]
   --behaviors     Path to YAML file          [default: behaviors.yaml]
+  --agent          Wrap target in a bounded tool-use (ReAct) loop before attacking it
+  --channel        Crescendo delivery channel  direct | tool_output  [default: direct]
 ```
+
+`--channel tool_output` (implies `--agent`) tests a variant of Crescendo where the
+escalating turns are delivered as a tool call's *return value* instead of as direct
+user messages — see [Agent-mode / indirect injection](#agent-mode--indirect-injection)
+below.
 
 ### `ci` — CI/CD safety gate
 
@@ -281,6 +288,48 @@ promptstrike/
 | **TAP** | Mehrotra et al. 2023 — *Tree of Attacks with Pruning* · [arXiv:2312.02119](https://arxiv.org/abs/2312.02119) | ✅ |
 | **GCG** | Zou et al. 2023 — *Universal Adversarial Attacks on LLMs* · [arXiv:2307.15043](https://arxiv.org/abs/2307.15043) | ✅ |
 | **Crescendo** | Russinovich et al. 2024 · [arXiv:2404.01833](https://arxiv.org/abs/2404.01833) | ✅ |
+
+---
+
+## Agent-mode / indirect injection
+
+Crescendo's escalation, as described in the paper, is delivered through direct
+**user** turns — the attacker LLM writes each message and the target reads it as
+something a human said. Most real deployments don't just chat with a human,
+though: they sit inside a tool-use loop (MCP tool calls, RAG document fetches,
+web search results) and also read content that arrives as a *tool's output*.
+
+`promptstrike/core/agent_target.py` adds `AgentAdapter`, a thin wrapper that runs
+any existing target through a bounded, prompt-based tool-use loop (a `search`
+tool with a JSON call/response protocol, so it works identically across
+Groq/OpenAI/Ollama without depending on a provider's native function-calling
+API). Crescendo gained a `channel` parameter that routes the escalating turn
+either way:
+
+- `channel="direct"` (default) — unchanged from the paper; the escalating text
+  is sent as a normal `role="user"` message.
+- `channel="tool_output"` — the escalating text is queued with
+  `AgentAdapter.queue_tool_payload()` and only ever reaches the target as the
+  return value of a tool call it decided to make itself. The only thing sent
+  as a direct user message is a static, non-escalating wrapper line
+  (`CRESCENDO_TOOL_WRAPPER` in `core/prompts.py`) — nothing "the user said"
+  carries the attack payload in this mode.
+
+This is a narrow, testable question, not a claim either way: does the same
+gradual-escalation effect that works via direct user turns transfer to an
+indirect, tool-mediated channel? Run it with:
+
+```bash
+promptstrike scan --algo crescendo --agent --channel tool_output --target groq/llama-3.3-70b-versatile
+```
+
+`tests/test_agent_target.py` and the `tool_output` cases in
+`tests/test_crescendo.py` assert the isolation directly — every message that
+reaches the wrapped target with `role="user"` is either the static wrapper or
+a `[TOOL RESULT: ...]`-prefixed message, never the raw escalation text.
+
+(Prompted in part by this discussion on prompt-injection-via-tool-output in
+agent harnesses: [NVIDIA/garak#2126](https://github.com/NVIDIA/garak/issues/2126).)
 
 ---
 
