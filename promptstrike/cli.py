@@ -42,6 +42,7 @@ from promptstrike.config import settings
 from promptstrike.core.pair import AttackStatus, run_pair, PairResult
 from promptstrike.core.tap import run_tap
 from promptstrike.core.crescendo import run_crescendo
+from promptstrike.core.agent_target import AgentAdapter
 from promptstrike.defense.scanner import scan_input
 from promptstrike.defense.classifier import classify_output
 from promptstrike.storage.db import Database
@@ -59,13 +60,18 @@ db = Database()
 
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
-def _make_target_adapter(target: str):
+def _make_target_adapter(target: str, agent: bool = False):
     provider, model = target.split("/", 1) if "/" in target else ("groq", target)
     if provider == "openai":
-        return OpenAIAdapter(api_key=settings.openai_api_key, model=model)
-    if provider == "ollama":
-        return OllamaAdapter(model=model, base_url=settings.ollama_url)
-    return GroqAdapter(api_key=settings.groq_api_key, model=model)
+        base = OpenAIAdapter(api_key=settings.openai_api_key, model=model)
+    elif provider == "ollama":
+        base = OllamaAdapter(model=model, base_url=settings.ollama_url)
+    else:
+        base = GroqAdapter(api_key=settings.groq_api_key, model=model)
+    # --agent wraps the target in a bounded tool-use (ReAct) loop. Needed for
+    # --channel tool -- Crescendo's indirect, tool-output injection test --
+    # but also usable standalone to attack a target through a tool-calling loop.
+    return AgentAdapter(target=base) if agent else base
 
 
 def _load_behaviors(
@@ -101,9 +107,11 @@ async def _run_quiet_campaign(
     max_iter: int,
     budget: int,
     campaign_name: str,
+    agent: bool = False,
+    channel: str = "direct",
 ) -> tuple[int, int, int, int]:
     """Run a full campaign silently. Returns (campaign_id, succeeded, tested, calls_used, errored)."""
-    target_adapter   = _make_target_adapter(target)
+    target_adapter   = _make_target_adapter(target, agent=agent or channel == "tool_output")
     attacker_adapter = GroqAdapter(api_key=settings.groq_api_key, model=settings.attacker_model)
     judge_adapter    = GroqAdapter(api_key=settings.groq_api_key, model=settings.judge_model)
 
@@ -148,10 +156,13 @@ async def _run_quiet_campaign(
                 max_backtracks=settings.crescendo_max_backtracks,
                 call_budget=budget - total_calls,
                 judge_threshold=settings.judge_threshold,
+                channel=channel,
             )
-            # Render the full turn sequence so HTML reports show the escalation
+            # Render the full turn sequence so HTML reports show the escalation,
+            # tagging turns delivered via the tool-output channel
             turn_lines = [
-                f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}] "
+                f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}"
+                f"{' via-tool' if t.delivered_via == 'tool_output' else ''}] "
                 f"score={t.judge.score}: {t.user_message}"
                 for t in crescendo_r.turns
             ]
@@ -207,6 +218,13 @@ def scan(
     campaign_name: str = typer.Option("", "--name", "-n",
         help="Campaign label (auto-generated if blank)"),
     behaviors_file: Path = typer.Option(Path("behaviors.yaml"), "--behaviors"),
+    agent: bool = typer.Option(False, "--agent",
+        help="Wrap the target in a bounded tool-use (ReAct) loop before attacking it"),
+    channel: str = typer.Option("direct", "--channel",
+        help="Crescendo delivery channel: direct (escalation as user turns) | "
+             "tool_output (escalation delivered as a tool call's return value, "
+             "via --agent). See garak issue #2126 -- tests whether indirect "
+             "tool-output injection reproduces the same escalation effect."),
 ):
     """
     Run an adversarial scan against a target LLM.
@@ -219,12 +237,19 @@ def scan(
     if algo not in ("pair", "tap", "crescendo"):
         console.print(f"[red]Unknown algorithm '{algo}'. Choose: pair | tap | crescendo[/]")
         raise typer.Exit(1)
+    if channel not in ("direct", "tool_output"):
+        console.print(f"[red]Unknown channel '{channel}'. Choose: direct | tool_output[/]")
+        raise typer.Exit(1)
+    if channel == "tool_output" and algo != "crescendo":
+        console.print("[red]--channel tool_output is only meaningful with --algo crescendo[/]")
+        raise typer.Exit(1)
     asyncio.run(_scan_async(target=target, algo=algo, goals=goals, category=category,
                              max_iter=max_iter, budget=budget, campaign_name=campaign_name,
-                             behaviors_file=behaviors_file))
+                             behaviors_file=behaviors_file, agent=agent, channel=channel))
 
 
-async def _scan_async(target, algo, goals, category, max_iter, budget, campaign_name, behaviors_file):
+async def _scan_async(target, algo, goals, category, max_iter, budget, campaign_name, behaviors_file,
+                       agent: bool = False, channel: str = "direct"):
     if not settings.groq_api_key:
         console.print("[bold red]Error:[/] GROQ_API_KEY not set. Copy .env.example → .env.")
         raise typer.Exit(1)
@@ -241,7 +266,7 @@ async def _scan_async(target, algo, goals, category, max_iter, budget, campaign_
     )
     total_calls = 0
     succeeded   = 0
-    target_adapter   = _make_target_adapter(target)
+    target_adapter   = _make_target_adapter(target, agent=agent or channel == "tool_output")
     attacker_adapter = GroqAdapter(api_key=settings.groq_api_key, model=settings.attacker_model)
     judge_adapter    = GroqAdapter(api_key=settings.groq_api_key, model=settings.judge_model)
 
@@ -282,9 +307,11 @@ async def _scan_async(target, algo, goals, category, max_iter, budget, campaign_
                     max_backtracks=settings.crescendo_max_backtracks,
                     call_budget=budget - total_calls,
                     judge_threshold=settings.judge_threshold,
+                    channel=channel,
                 )
                 turn_lines = [
-                    f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}] "
+                    f"[Turn {t.turn_number}{'*' if t.is_backtrack else ''}"
+                    f"{' via-tool' if t.delivered_via == 'tool_output' else ''}] "
                     f"score={t.judge.score}: {t.user_message}"
                     for t in crescendo_r.turns
                 ]
