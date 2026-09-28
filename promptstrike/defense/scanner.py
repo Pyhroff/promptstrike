@@ -59,10 +59,10 @@ _RULES: list[tuple[str, float, str, re.Pattern | None, str]] = [
         0.40,
         "high",
         re.compile(
-            r"(ignore (all |your |previous |prior |above |these )?(instructions?|rules?|guidelines?|constraints?|policies?|restrictions?)"
-            r"|disregard (all |your |previous |prior |above )?(instructions?|rules?|restrictions?)"
-            r"|forget (all |your |previous )?(instructions?|rules?|guidelines?)"
-            r"|override (your |the |all )?(instructions?|rules?|safety|alignment)"
+            r"(ignore (all |your |previous |prior |above |these )*(instructions?|rules?|guidelines?|constraints?|policies?|restrictions?)"
+            r"|disregard (all |your |previous |prior |above )*(instructions?|rules?|restrictions?)"
+            r"|forget (all |your |previous )*(instructions?|rules?|guidelines?)"
+            r"|override (your |the |all )*(instructions?|rules?|safety|alignment)"
             r"|you (are|must|will|shall) (now |no longer )?(follow|obey|act|pretend|roleplay|ignore))",
             re.IGNORECASE,
         ),
