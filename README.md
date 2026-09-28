@@ -27,6 +27,35 @@ promptstrike ci --budget 50 --asr-threshold 5 --json
 
 ---
 
+## Why this matters
+
+Crescendo is not a theoretical attack — it's the technique [Microsoft's own security research team documented in April 2024](https://arxiv.org/abs/2404.01019) after finding it worked against GPT-4, Gemini, and Llama-2 in production. Instead of asking a model something obviously harmful, Crescendo starts with an innocuous, on-topic question and escalates gradually across a handful of turns — each one referencing the model's *own prior answer* as justification for going one step further — until the model has walked itself into producing content it would have refused outright if asked directly in turn one. It works precisely because it exploits the thing that makes chat models useful: they treat their own conversation history as trustworthy context, not as something to re-evaluate for intent. PromptStrike doesn't just implement this as a fixed script — it also tests a variant most red-teaming tools skip entirely: delivering the escalating turns through a tool call's *return value* instead of direct user messages, simulating what happens when an agent's own tool output becomes the injection vector rather than the human in the chat. That's the difference between testing "can a user jailbreak this model" and testing "can a poisoned tool result jailbreak this agent" — the second question is the one that actually matters as LLMs get wired into agents with real tool access.
+
+## Demo
+
+<!--
+  TODO(Blessing): replace this line with the recorded GIF, e.g.:
+  ![PromptStrike live dashboard](docs/demo.gif)
+
+  How to record it (2-3 minutes):
+  1. `promptstrike serve` in one terminal, `promptstrike scan --goals 5 --algo crescendo` in another.
+  2. Open http://127.0.0.1:8080 in a browser window sized to ~1000x600 so it reads
+     well embedded in a README.
+  3. Record with a free screen-to-GIF tool:
+       - Windows: ScreenToGif (screentogif.com) — free, purpose-built for this.
+       - Or: record a short .mp4 (OBS / Xbox Game Bar) and convert with ffmpeg:
+         ffmpeg -i demo.mp4 -vf "fps=12,scale=1000:-1" -loop 0 docs/demo.gif
+  4. Capture 8-15 seconds: a couple of attack attempts scrolling in on the live
+     feed, at least one hitting a visible jailbreak score, is plenty -- don't
+     record a whole campaign, GitHub READMEs want it short and looping.
+  5. Keep the file under ~8MB or GitHub will render it slowly; `gifsicle -O3`
+     helps if it's too big.
+  6. Save to docs/demo.gif in the repo and replace this comment block with the
+     ![...](docs/demo.gif) line above.
+-->
+
+*(GIF coming soon -- see the Quickstart above to run it yourself in the meantime.)*
+
 ## How it works
 
 ```
