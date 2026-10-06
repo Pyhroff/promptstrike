@@ -1,0 +1,35 @@
+name: PR size labeling
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Classify PR size
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          total=$((ADDITIONS + DELETIONS))
+          if [ "$total" -le 50 ]; then label="size: small"
+          elif [ "$total" -le 200 ]; then label="size: medium"
+          else label="size: large"; fi
+          for candidate in "size: small" "size: medium" "size: large"; do
+            gh label create "$candidate" --repo "$REPO" --color "ededed" --description "Automatic PR size classification" 2>/dev/null || true
+          done
+          gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label "$label"
+          echo "PR #$PR_NUMBER classified as $label ($total changed lines)."
