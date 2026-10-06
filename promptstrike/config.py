@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = ""       # override for custom OpenAI-compatible endpoints
 
-    default_model: str = "llama-3.3-70b-versatile"
-    judge_model: str = "llama-3.3-70b-versatile"
-    attacker_model: str = "llama-3.3-70b-versatile"
+    default_model: str = "openai/gpt-oss-120b"
+    judge_model: str = "openai/gpt-oss-120b"
+    attacker_model: str = "openai/gpt-oss-120b"
 
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
