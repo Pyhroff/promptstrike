@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "groq>=0.9",
-    "openai>=1.35",
+    "openai>=3.24.0",
     "typer>=0.12",
     "rich>=13",
     "pydantic-settings>=2",
