@@ -1,0 +1,87 @@
+name: CI failure classification
+
+on:
+  workflow_run:
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  classify:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Classify failed run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          jobs="$(gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")"
+          failed="$(printf '%s' "$jobs" | jq -r '.jobs[] | select(.conclusion == "failure") | .id')"
+          evidence=""
+          for id in $failed; do
+            log="$(gh api "repos/$REPO/actions/jobs/$id/logs" 2>/dev/null | tail -n 160 || true)"
+            evidence="$evidence
+$log"
+          done
+
+          category="unknown"
+          confidence="low"
+          remediation="Human investigation required."
+
+          if printf '%s' "$evidence" | grep -Eiq 'ModuleNotFoundError|No module named|Could not find a version|ResolutionImpossible|requires Python|dependency conflict'; then
+            category="dependency"
+            confidence="high"
+            remediation="Inspect dependency constraints and supported Python versions; do not blindly upgrade majors."
+          elif printf '%s' "$evidence" | grep -Eiq 'pytest|AssertionError|FAILED .*test|test.*failed'; then
+            category="test-regression"
+            confidence="medium"
+            remediation="Inspect the first failing test and compare against the triggering commit."
+          elif printf '%s' "$evidence" | grep -Eiq 'ruff|flake8|black|formatting|lint'; then
+            category="lint-format"
+            confidence="high"
+            remediation="Apply only deterministic formatting/lint fixes, then rerun checks."
+          elif printf '%s' "$evidence" | grep -Eiq 'repository not found|Unable to resolve action|Input required and not supplied|Resource not accessible'; then
+            category="workflow-permission"
+            confidence="high"
+            remediation="Check repository Actions access, permissions, or required secrets; never expose secrets."
+          elif printf '%s' "$evidence" | grep -Eiq 'timeout|rate limit|502|503|504|connection reset|network'; then
+            category="infrastructure"
+            confidence="medium"
+            remediation="Retry once; if reproducible, inspect the external service or runner."
+          elif printf '%s' "$evidence" | grep -Eiq 'security|high severity|vulnerability|blocked|malicious'; then
+            category="security-gate"
+            confidence="medium"
+            remediation="Human security review required; do not auto-fix or bypass the gate."
+          fi
+
+          cat > /tmp/classification.md <<EOF
+          ## Automated CI failure classification
+
+          **Workflow:** $WORKFLOW
+          **Run:** $RUN_URL
+          **Category:** `$category`
+          **Confidence:** `$confidence`
+
+          ### Recommended remediation
+          $remediation
+
+          ### Safety boundary
+          This classifier is advisory. It does not modify source code, suppress checks, or bypass security gates.
+          EOF
+
+      - name: Create classification issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          gh issue create --repo "$REPO"             --title "CI classification: run $RUN_ID"             --body-file /tmp/classification.md
