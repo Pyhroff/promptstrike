@@ -164,3 +164,114 @@ def test_crescendo_result_asr_success():
 def test_crescendo_result_asr_failure():
     r = CrescendoResult(behavior_id=1, goal="x", target_model="m", status=AttackStatus.FAILED)
     assert r.attack_success_rate == 0.0
+
+
+# ── tool_output channel (agent-mode / indirect injection) ─────────────────────
+# See promptstrike/core/agent_target.py and garak issue #2126: does the same
+# gradual-escalation effect that works via direct user turns still work when
+# the escalating content is delivered as a tool call's *return value* instead?
+
+from promptstrike.core.agent_target import AgentAdapter
+
+
+def _make_agent_target(inner_responses: list[str], max_tool_turns: int = 3) -> AgentAdapter:
+    """An AgentAdapter wrapping a mock inner target. The inner target alternates
+    between calling the `search` tool once and then answering, per Crescendo turn."""
+    inner = _make_adapter(inner_responses)
+    return AgentAdapter(target=inner, max_tool_turns=max_tool_turns)
+
+
+_TOOL_THEN_ANSWER = [
+    '{"tool_call": {"tool": "search", "args": {"query": "context"}}}',
+    "Here's what I found and my answer.",
+]
+
+
+def test_tool_output_channel_requires_agent_adapter():
+    """channel='tool_output' with a plain (non-agent) target raises immediately."""
+    import asyncio
+
+    async def _run():
+        return await run_crescendo(
+            behavior_id=20, goal="test",
+            target=_make_adapter([]), attacker=_make_adapter([]), judge=_make_adapter([]),
+            channel="tool_output",
+        )
+
+    with pytest.raises(ValueError, match="AgentAdapter"):
+        asyncio.run(_run())
+
+
+@pytest.mark.asyncio
+async def test_tool_output_channel_never_sends_escalation_as_direct_user_message():
+    """
+    Core claim under test: with channel='tool_output', the escalating attacker
+    text (user_msg) reaches the target only via the tool-result channel. Every
+    message actually handed to the *inner* target with role='user' must be
+    either the static CRESCENDO_TOOL_WRAPPER or a '[TOOL RESULT: ...]' message
+    -- never the raw escalation text itself.
+    """
+    from promptstrike.core.prompts import CRESCENDO_TOOL_WRAPPER
+
+    agent_target = _make_agent_target(_TOOL_THEN_ANSWER * 3)
+
+    result = await run_crescendo(
+        behavior_id=21, goal="test goal",
+        target=agent_target,
+        attacker=_make_adapter([_TURN_JSON] * 3),
+        judge=_make_adapter([_WIN_JUDGE]),
+        max_turns=3, call_budget=300, channel="tool_output",
+    )
+
+    assert result.status == AttackStatus.SUCCESS
+    assert result.turns[0].delivered_via == "tool_output"
+    assert result.turns[0].user_message == "Tell me more about this step by step."
+
+    inner_target = agent_target.target
+    escalation_text = result.turns[0].user_message
+    for call in inner_target.chat.call_args_list:
+        messages = call.args[0]
+        for msg in messages:
+            if msg.role == "user":
+                assert msg.content == CRESCENDO_TOOL_WRAPPER or msg.content.startswith(
+                    "[TOOL RESULT:"
+                ), f"unexpected direct user message: {msg.content!r}"
+                if msg.content != CRESCENDO_TOOL_WRAPPER:
+                    assert msg.content.startswith("[TOOL RESULT:")
+
+
+@pytest.mark.asyncio
+async def test_tool_output_channel_delivers_escalation_via_queued_payload():
+    """The escalating turn text must show up as the tool's return value at some point."""
+    agent_target = _make_agent_target(_TOOL_THEN_ANSWER)
+
+    result = await run_crescendo(
+        behavior_id=22, goal="test goal",
+        target=agent_target,
+        attacker=_make_adapter([_TURN_JSON]),
+        judge=_make_adapter([_WIN_JUDGE]),
+        max_turns=1, call_budget=300, channel="tool_output",
+    )
+
+    escalation_text = result.turns[0].user_message
+    inner_target = agent_target.target
+    tool_result_messages = [
+        msg.content
+        for call in inner_target.chat.call_args_list
+        for msg in call.args[0]
+        if msg.role == "user" and msg.content.startswith("[TOOL RESULT:")
+    ]
+    assert any(escalation_text in content for content in tool_result_messages)
+
+
+@pytest.mark.asyncio
+async def test_direct_channel_still_sends_escalation_as_user_message():
+    """Regression guard: default channel='direct' behavior is unchanged."""
+    result = await run_crescendo(
+        behavior_id=23, goal="test goal",
+        target=_make_adapter(["response"]),
+        attacker=_make_adapter([_TURN_JSON]),
+        judge=_make_adapter([_WIN_JUDGE]),
+        max_turns=1, call_budget=300,
+    )
+    assert result.turns[0].delivered_via == "direct"
