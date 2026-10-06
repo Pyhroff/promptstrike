@@ -1,0 +1,28 @@
+name: Workflow hardening
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  immutable-action-refs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check workflow action refs are immutable
+        shell: bash
+        run: |
+          set -euo pipefail
+          violations=0
+          while IFS= read -r line; do
+            if [[ "$line" =~ uses:[[:space:]]+[^[:space:]@]+@([^[:space:]#]+) ]]; then
+              ref="${BASH_REMATCH[1]}"
+              if [[ ! "$ref" =~ ^[0-9a-fA-F]{40}$ ]]; then
+                echo "::error::Non-immutable action/workflow ref: $line"
+                violations=1
+              fi
+            fi
+          done < <(grep -hE '^[[:space:]-]*uses:[[:space:]]+' .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null || true)
+          exit "$violations"
