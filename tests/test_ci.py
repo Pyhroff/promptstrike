@@ -31,7 +31,7 @@ async def test_ci_returns_0_when_asr_below_threshold(behaviors_yaml):
          patch("promptstrike.cli.settings") as mock_settings, \
          patch("promptstrike.cli.db"):
         mock_settings.groq_api_key = "fake-key"
-        mock_run.return_value = (1, 0, 2, 6)   # campaign_id, succeeded, tested, calls
+        mock_run.return_value = (1, 0, 2, 6, 0)   # campaign_id, succeeded, tested, calls, errored
 
         code = await _ci_async(
             target="groq/test", algo="pair", goals=None, category=None,
@@ -43,6 +43,29 @@ async def test_ci_returns_0_when_asr_below_threshold(behaviors_yaml):
 
 
 @pytest.mark.asyncio
+async def test_ci_fails_when_all_goals_errored_even_at_zero_asr(behaviors_yaml):
+    """
+    Regression test: if every goal errored out (e.g. API failure), 0 succeeded /
+    0 scored must NOT read as "0% ASR, model resisted" and silently PASS the
+    gate. An errored run means the scan never actually executed.
+    """
+    with patch("promptstrike.cli._run_quiet_campaign", new_callable=AsyncMock) as mock_run, \
+         patch("promptstrike.cli.console"), \
+         patch("promptstrike.cli.settings") as mock_settings, \
+         patch("promptstrike.cli.db"):
+        mock_settings.groq_api_key = "fake-key"
+        mock_run.return_value = (1, 0, 2, 2, 2)   # 2 tested, 2 errored, 0 succeeded
+
+        code = await _ci_async(
+            target="groq/test", algo="pair", goals=None, category=None,
+            max_iter=5, budget=50, asr_threshold=10.0,
+            report_output=None, json_out=False, behaviors_file=behaviors_yaml,
+        )
+
+    assert code == 1
+
+
+@pytest.mark.asyncio
 async def test_ci_returns_1_when_asr_exceeds_threshold(behaviors_yaml):
     """ASR = 100% with threshold = 10% → exit code 1 (FAIL)."""
     with patch("promptstrike.cli._run_quiet_campaign", new_callable=AsyncMock) as mock_run, \
@@ -50,7 +73,7 @@ async def test_ci_returns_1_when_asr_exceeds_threshold(behaviors_yaml):
          patch("promptstrike.cli.settings") as mock_settings, \
          patch("promptstrike.cli.db"):
         mock_settings.groq_api_key = "fake-key"
-        mock_run.return_value = (1, 2, 2, 6)   # both goals jailbroken
+        mock_run.return_value = (1, 2, 2, 6, 0)   # both goals jailbroken
 
         code = await _ci_async(
             target="groq/test", algo="pair", goals=None, category=None,
@@ -85,7 +108,7 @@ async def test_ci_threshold_zero_fails_on_any_jailbreak(behaviors_yaml):
          patch("promptstrike.cli.settings") as mock_settings, \
          patch("promptstrike.cli.db"):
         mock_settings.groq_api_key = "fake-key"
-        mock_run.return_value = (1, 1, 10, 30)  # 1/10 = 10% ASR
+        mock_run.return_value = (1, 1, 10, 30, 0)  # 1/10 = 10% ASR
 
         code = await _ci_async(
             target="groq/test", algo="pair", goals=None, category=None,
@@ -106,7 +129,7 @@ async def test_ci_json_output_structure(behaviors_yaml, capsys):
          patch("promptstrike.cli.settings") as mock_settings, \
          patch("promptstrike.cli.db"):
         mock_settings.groq_api_key = "fake-key"
-        mock_run.return_value = (42, 1, 5, 15)   # 1/5 = 20% ASR
+        mock_run.return_value = (42, 1, 5, 15, 0)   # 1/5 = 20% ASR
 
         await _ci_async(
             target="groq/llama", algo="pair", goals=None, category=None,
@@ -134,7 +157,7 @@ async def test_ci_json_fail_status(behaviors_yaml, capsys):
          patch("promptstrike.cli.settings") as mock_settings, \
          patch("promptstrike.cli.db"):
         mock_settings.groq_api_key = "fake-key"
-        mock_run.return_value = (7, 3, 3, 9)   # 3/3 = 100% ASR
+        mock_run.return_value = (7, 3, 3, 9, 0)   # 3/3 = 100% ASR
 
         await _ci_async(
             target="groq/llama", algo="pair", goals=None, category=None,
