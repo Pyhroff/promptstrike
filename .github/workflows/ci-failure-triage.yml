@@ -1,0 +1,77 @@
+name: CI failure triage
+
+on:
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect failed jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100"             --jq '.jobs[] | select(.conclusion == "failure") | [.id,.name,.html_url] | @tsv'             > /tmp/failed-jobs.tsv
+          if [ ! -s /tmp/failed-jobs.tsv ]; then
+            echo "No failed jobs found; workflow may have failed during setup/cancellation."
+          fi
+
+      - name: Build diagnostic report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Automated CI failure triage"
+            echo
+            echo "**Workflow:** $WORKFLOW_NAME"
+            echo "**Run:** $RUN_URL"
+            echo "**Commit:** `$SHA`"
+            echo
+            echo "### Failed jobs"
+            while IFS=$'\t' read -r job_id job_name job_url; do
+              [ -n "$job_id" ] || continue
+              echo
+              echo "#### $job_name"
+              echo "$job_url"
+              echo
+              gh api "repos/$REPO/actions/jobs/$job_id/logs" 2>/dev/null                 | tail -n 120                 | sed -E 's/(gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|x-access-token:[^ @]+|Authorization: Bearer [^ ]+)/[REDACTED]/g'                 | tail -n 80                 || echo "Unable to retrieve job logs."
+            done < /tmp/failed-jobs.tsv
+            echo
+            echo "### Triage guidance"
+            echo "- This issue was generated automatically from a failed GitHub Actions run."
+            echo "- Do not bypass failing security or regression checks."
+            echo "- Investigate the failed job before changing code."
+          } > /tmp/triage.md
+
+      - name: Open or update triage issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          title="CI failure triage: run $RUN_ID"
+          existing="$(gh issue list --repo "$REPO" --state open --search "\"$title\"" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$REPO" --body-file /tmp/triage.md
+          else
+            gh issue create --repo "$REPO"               --title "$title"               --body-file /tmp/triage.md               --label "ci"
+          fi
