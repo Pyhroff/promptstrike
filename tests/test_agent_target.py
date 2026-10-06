@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from promptstrike.adapters.base import AdapterStats, ChatMessage
-from promptstrike.core.agent_target import AgentAdapter, AgentTurnLog, _parse_tool_call
+from promptstrike.adapters.base import ChatMessage
+from promptstrike.core.agent_target import AgentAdapter, _parse_tool_call
 
 
 def _make_target(responses: list[str]) -> AsyncMock:
