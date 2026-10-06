@@ -82,15 +82,15 @@ Results persist to SQLite and export as **OWASP LLM Top 10 mapped HTML reports**
 
 | | Feature |
 |---|---|
-| ⚔️ | **Three attack algorithms** — PAIR (Chao et al. 2023), TAP (Mehrotra et al. 2023), Crescendo (Russinovich et al. 2024) |
-| 🎯 | **50 behavior goals** across 10 categories, each tagged to OWASP LLM01–LLM09 |
-| 🤖 | **Multi-provider targets** — Groq, OpenAI, Ollama (any local model) |
-| 📊 | **Glassmorphism HTML reports** — OWASP breakdown, attack spotlights, per-run table |
-| 🌐 | **Live WebSocket dashboard** — real-time attack feed at `http://localhost:8080` |
-| 🔁 | **Multi-model sweep** — run the same behavior set across N models, side-by-side heatmap |
-| 🚦 | **CI/CD gate** — `exit 1` if ASR exceeds threshold; JSON output for log parsing |
-| 💾 | **SQLite persistence** — full attack tree: every iteration, prompt, score |
-| ⚡ | **Rate-limit aware** — exponential backoff on 429s, per-scan call budget |
+|  | **Three attack algorithms** — PAIR (Chao et al. 2023), TAP (Mehrotra et al. 2023), Crescendo (Russinovich et al. 2024) |
+|  | **50 behavior goals** across 10 categories, each tagged to OWASP LLM01–LLM09 |
+|  | **Multi-provider targets** — Groq, OpenAI, Ollama (any local model) |
+|  | **Glassmorphism HTML reports** — OWASP breakdown, attack spotlights, per-run table |
+|  | **Live WebSocket dashboard** — real-time attack feed at `http://localhost:8080` |
+|  | **Multi-model sweep** — run the same behavior set across N models, side-by-side heatmap |
+|  | **CI/CD gate** — `exit 1` if ASR exceeds threshold; JSON output for log parsing |
+|  | **SQLite persistence** — full attack tree: every iteration, prompt, score |
+|  | **Rate-limit aware** — exponential backoff on 429s, per-scan call budget |
 
 ---
 
@@ -313,10 +313,10 @@ promptstrike/
 
 | Algorithm | Paper | Status |
 |---|---|---|
-| **PAIR** | Chao et al. 2023 — *Jailbreaking Black Box LLMs in Twenty Queries* · [arXiv:2310.08419](https://arxiv.org/abs/2310.08419) | ✅ |
-| **TAP** | Mehrotra et al. 2023 — *Tree of Attacks with Pruning* · [arXiv:2312.02119](https://arxiv.org/abs/2312.02119) | ✅ |
-| **GCG** | Zou et al. 2023 — *Universal Adversarial Attacks on LLMs* · [arXiv:2307.15043](https://arxiv.org/abs/2307.15043) | ✅ |
-| **Crescendo** | Russinovich et al. 2024 · [arXiv:2404.01833](https://arxiv.org/abs/2404.01833) | ✅ |
+| **PAIR** | Chao et al. 2023 — *Jailbreaking Black Box LLMs in Twenty Queries* · [arXiv:2310.08419](https://arxiv.org/abs/2310.08419) |  |
+| **TAP** | Mehrotra et al. 2023 — *Tree of Attacks with Pruning* · [arXiv:2312.02119](https://arxiv.org/abs/2312.02119) |  |
+| **GCG** | Zou et al. 2023 — *Universal Adversarial Attacks on LLMs* · [arXiv:2307.15043](https://arxiv.org/abs/2307.15043) |  |
+| **Crescendo** | Russinovich et al. 2024 · [arXiv:2404.01833](https://arxiv.org/abs/2404.01833) |  |
 
 ---
 
