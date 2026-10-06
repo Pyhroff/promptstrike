@@ -2,8 +2,7 @@ name: CI failure triage
 
 on:
   workflow_run:
-    workflows: ["*"]
-    types: [completed]
+      types: [completed]
 
 permissions:
   actions: read
