@@ -418,6 +418,15 @@ GCG (Zou et al. 2023) performs token-level coordinate descent using ∂loss/∂e
 
 ---
 
+
+
+## Security research & evaluation
+
+- [Threat model](docs/THREAT_MODEL.md)
+- [Evaluation methodology](docs/EVALUATION.md)
+
+The project separates **direct user attacks** from **indirect tool-output attacks** so experimental results preserve a meaningful causal boundary. Published results should include model, attack, channel, budget, defense configuration and trial count.
+
 ## License
 
 MIT — see [LICENSE](LICENSE). Authorized use only.
