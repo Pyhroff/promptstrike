@@ -21,12 +21,14 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          if [[ "$(gh api "repos/$REPOSITORY" --jq '.allow_auto_merge')" != "true" ]]; then
+          allow_auto_merge="$(gh api "repos/$REPOSITORY" --jq '.allow_auto_merge')"
+          if [[ "$allow_auto_merge" != "true" ]]; then
             echo "eligible=false" >> "$GITHUB_OUTPUT"
             echo "Skipping: repository auto-merge is disabled."
             exit 0
           fi
-          if gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename' | grep -E '^\.github/workflows/'; then
+          changed_files="$(gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename')"
+          if printf '%s\n' "$changed_files" | grep -E '^\.github/workflows/'; then
             echo "eligible=false" >> "$GITHUB_OUTPUT"
             echo "Skipping: PR modifies a GitHub Actions workflow."
             exit 0
