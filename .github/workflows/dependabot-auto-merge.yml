@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
@@ -13,14 +13,36 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
+      - name: Check auto-merge eligibility
+        id: eligibility
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          allow_auto_merge="$(gh api "repos/$REPOSITORY" --jq '.allow_auto_merge')"
+          if [[ "$allow_auto_merge" != "true" ]]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: repository auto-merge is disabled."
+            exit 0
+          fi
+          changed_files="$(gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename')"
+          if printf '%s\n' "$changed_files" | grep -E '^\.github/workflows/'; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping: PR modifies a GitHub Actions workflow."
+            exit 0
+          fi
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
       - name: Fetch Dependabot metadata
         id: metadata
+        if: steps.eligibility.outputs.eligible == 'true'
         uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Enable safe auto-merge
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        if: steps.eligibility.outputs.eligible == 'true' && (steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
