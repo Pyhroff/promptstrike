@@ -2,7 +2,7 @@
 
 **Automated adversarial red teaming for large language models.**
 
-PromptStrike implements **PAIR**, **TAP**, and **Crescendo** — three state-of-the-art black-box jailbreak algorithms from academic literature — as a production-grade CLI tool with a live WebSocket dashboard, multi-model sweep comparison, and a CI/CD safety gate.
+PromptStrike implements published jailbreak algorithms (**PAIR**, **TAP** and **Crescendo** black-box, plus optional **GCG** white-box) as a CLI with a live WebSocket dashboard, multi-model sweep comparison and a CI safety gate, so you can measure how often a model you deploy can be talked out of its policy.
 
 ```bash
 # attack a single model
@@ -18,7 +18,6 @@ promptstrike ci --budget 50 --asr-threshold 5 --json
 ```
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-56%20passed-brightgreen?style=flat-square)
 ![Algorithms](https://img.shields.io/badge/Algorithms-PAIR%20%7C%20TAP%20%7C%20GCG%20%7C%20Crescendo-red?style=flat-square)
 ![Judge](https://img.shields.io/badge/Judge-JailbreakBench%20rubric-orange?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
@@ -414,6 +413,8 @@ GCG (Zou et al. 2023) performs token-level coordinate descent using ∂loss/∂e
 - Mehrotra et al. (2023). *Tree of Attacks with Pruning (TAP).* [arXiv:2312.02119](https://arxiv.org/abs/2312.02119)
 - Chao et al. (2024). *JailbreakBench: An Open Robustness Benchmark for Jailbreaking LLMs.* [arXiv:2404.01318](https://arxiv.org/abs/2404.01318)
 - Mazeika et al. (2024). *HarmBench.* [arXiv:2402.04249](https://arxiv.org/abs/2402.04249)
+- Russinovich et al. (2024). *Great, Now Write an Article About That: The Crescendo Multi-Turn LLM Jailbreak Attack.* [arXiv:2404.01833](https://arxiv.org/abs/2404.01833)
+- Zou et al. (2023). *Universal and Transferable Adversarial Attacks on Aligned Language Models* (GCG). [arXiv:2307.15043](https://arxiv.org/abs/2307.15043)
 - OWASP LLM Top 10: [owasp.org/llm-top-10](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
 
 ---
@@ -427,6 +428,13 @@ GCG (Zou et al. 2023) performs token-level coordinate descent using ∂loss/∂e
 
 The project separates **direct user attacks** from **indirect tool-output attacks** so experimental results preserve a meaningful causal boundary. Published results should include model, attack, channel, budget, defense configuration and trial count.
 
+## Limitations and responsible use
+
+- Attack success rate depends on the attacker model, judge, goal set, budget and temperature; compare numbers only when all of those match, and report trial counts.
+- The judge is itself an LLM applying the JailbreakBench rubric, so it has false positives and negatives; spot-check transcripts before quoting a rate.
+- A low attack success rate under these algorithms is not evidence that a model is safe against other attacks or human red-teamers.
+- Run it only against models and endpoints you own or are authorised to test, and within each provider's usage policy.
+
 ## License
 
-MIT — see [LICENSE](LICENSE). Authorized use only.
+MIT, see [LICENSE](LICENSE). Authorized use only.
