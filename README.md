@@ -53,18 +53,25 @@ Crescendo is not a theoretical attack — it's the technique [Microsoft's own se
      ![...](docs/demo.gif) line above.
 -->
 
-*(GIF coming soon -- see the Quickstart above to run it yourself in the meantime.)*
+![terminal demo: promptstrike defend](docs/assets/demo.svg)
+
+_Real output of the offline `promptstrike defend` input scanner (ANSI stripped). The live dashboard GIF is still to come._
 
 ## How it works
 
-```
-┌─────────────────── PAIR / TAP attack loop ───────────────────────┐
-│                                                                    │
-│  Attacker LLM ──generates prompt──► Target LLM ──responds──►     │
-│       ▲                                              Judge LLM    │
-│       └──────────── score + feedback ◄──────────────────┘        │
-│                   (up to 20 iterations / 3-level tree)            │
-└────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    G["Behavior goal<br/>(behaviors.yaml)"] --> A["Attacker LLM<br/>generate / refine prompt"]
+    A --> T["Target LLM<br/>responds"]
+    T --> J["Judge LLM<br/>score 1-10"]
+    J --> D{"score >= judge_threshold<br/>(default 9)"}
+    D -->|"yes"| S["SUCCESS"]
+    D -->|"no: score + response fed back"| B{"iterations / budget left?"}
+    B -->|"yes"| A
+    B -->|"no"| F["FAILED / BUDGET"]
+    S --> DB[("SQLite<br/>storage")]
+    F --> DB
+    DB --> R["OWASP-mapped<br/>HTML report"]
 ```
 
 1. **Attacker LLM** generates an adversarial prompt for a behavior goal (e.g. *"explain how to synthesize ransomware"*).
