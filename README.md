@@ -32,27 +32,6 @@ Crescendo is not a theoretical attack — it's the technique [Microsoft's own se
 
 ## Demo
 
-<!--
-  TODO(Blessing): replace this line with the recorded GIF, e.g.:
-  ![PromptStrike live dashboard](docs/demo.gif)
-
-  How to record it (2-3 minutes):
-  1. `promptstrike serve` in one terminal, `promptstrike scan --goals 5 --algo crescendo` in another.
-  2. Open http://127.0.0.1:8080 in a browser window sized to ~1000x600 so it reads
-     well embedded in a README.
-  3. Record with a free screen-to-GIF tool:
-       - Windows: ScreenToGif (screentogif.com) — free, purpose-built for this.
-       - Or: record a short .mp4 (OBS / Xbox Game Bar) and convert with ffmpeg:
-         ffmpeg -i demo.mp4 -vf "fps=12,scale=1000:-1" -loop 0 docs/demo.gif
-  4. Capture 8-15 seconds: a couple of attack attempts scrolling in on the live
-     feed, at least one hitting a visible jailbreak score, is plenty -- don't
-     record a whole campaign, GitHub READMEs want it short and looping.
-  5. Keep the file under ~8MB or GitHub will render it slowly; `gifsicle -O3`
-     helps if it's too big.
-  6. Save to docs/demo.gif in the repo and replace this comment block with the
-     ![...](docs/demo.gif) line above.
--->
-
 ![terminal demo: promptstrike defend](docs/assets/demo.svg)
 
 _Real output of the offline `promptstrike defend` input scanner (ANSI stripped). The live dashboard GIF is still to come._
