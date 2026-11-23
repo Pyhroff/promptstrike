@@ -32,7 +32,7 @@ dependencies = [
     "jinja2>=3",
     "httpx>=0.28.1",
     "aiofiles>=23",
-    "fastapi>=0.142.2",
+    "fastapi>=0.143.0",
     "uvicorn[standard]>=0.30",
     "websockets>=17.1",
 ]
