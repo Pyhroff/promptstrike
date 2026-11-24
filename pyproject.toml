@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,8 @@ name = "promptstrike"
 version = "0.1.0"
 description = "Automated adversarial red teaming for LLMs — PAIR/TAP algorithms, AI-judge scoring, OWASP LLM Top 10 reports"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{name = "Pyhroff", email = "215876416+Pyhroff@users.noreply.github.com"}]
 keywords = ["llm", "red-teaming", "jailbreak", "adversarial", "ai-safety", "security", "pair", "tap"]
@@ -17,10 +18,11 @@ classifiers = [
     "Intended Audience :: Information Technology",
     "Topic :: Security",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "groq>=0.9",
